@@ -15,7 +15,7 @@ type Selector func(*html.Node) bool
 // that can be used to match against html.Node objects.
 func Compile(sel string) (Selector, os.Error) {
 	p := &parser{s: sel}
-	compiled, err := p.parseTypeSelector() // TODO: more complicated selectors
+	compiled, err := p.parseSimpleSelectorSequence() // TODO: more complicated selectors
 	if err != nil {
 		return nil, err
 	}
@@ -67,4 +67,26 @@ func toLowerASCII(s string) string {
 	}
 
 	return string(b)
+}
+
+// attributeEqualsSelector returns a Selector that matches nodes where
+// the attributed named key has the value val.
+func attributeEqualsSelector(key, val string) Selector {
+	key = toLowerASCII(key)
+	return func(n *html.Node) bool {
+		for _, a := range n.Attr {
+			if a.Key == key {
+				return a.Val == val
+			}
+		}
+		return false
+	}
+}
+
+// intersectionSelector returns a selector that matches nodes that match
+// both a and b.
+func intersectionSelector(a, b Selector) Selector {
+	return func(n *html.Node) bool {
+		return a(n) && b(n)
+	}
 }

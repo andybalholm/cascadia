@@ -1,32 +1,67 @@
 package cascadia
 
 import (
-	"fmt"
 	"html"
-	"os"
 	"strings"
 	"testing"
 )
 
 type selectorTest struct {
 	HTML, selector string
-	testFunc func([]*html.Node) os.Error
+	results        []string
+}
+
+func nodeString(n *html.Node) string {
+	switch n.Type {
+	case html.TextNode:
+		return n.Data
+	case html.ElementNode:
+		return html.Token{
+			Type: html.StartTagToken,
+			Data: n.Data,
+			Attr: n.Attr,
+		}.String()
+	}
+	return ""
 }
 
 var selectorTests = []selectorTest{
 	{
 		`<body><address>This address...</address></body>`,
 		"address",
-		func (r []*html.Node) os.Error {
-			if len(r) != 1 {
-				return fmt.Errorf("wanted one element, got %d", len(r))
-			}
-
-			if r[0].Data != "address" {
-				return fmt.Errorf("wanted an address element, got %s", r[0].Data)
-			}
-
-			return nil
+		[]string{
+			"<address>",
+		},
+	},
+	{
+		`<html><head></head><body></body></html>`,
+		"*",
+		[]string{
+			"",
+			"<html>",
+			"<head>",
+			"<body>",
+		},
+	},
+	{
+		`<p id="foo"><p id="bar">`,
+		"#foo",
+		[]string{
+			`<p id="foo">`,
+		},
+	},
+	{
+		`<ul><li id="t1"><p id="t1">`,
+		"li#t1",
+		[]string{
+			`<li id="t1">`,
+		},
+	},
+	{
+		`<ol><li id="t4"><li id="t44">`,
+		"*#t4",
+		[]string{
+			`<li id="t4">`,
 		},
 	},
 }
@@ -45,9 +80,17 @@ func TestSelectors(t *testing.T) {
 			continue
 		}
 
-		err = test.testFunc(s.MatchAll(doc))
-		if err != nil {
-			t.Errorf("error in results of %q selector: %s", test.selector, err)
+		matches := s.MatchAll(doc)
+		if len(matches) != len(test.results) {
+			t.Errorf("wanted %d elements, got %d instead", len(test.results), len(matches))
+			continue
+		}
+
+		for i, m := range matches {
+			got := nodeString(m)
+			if got != test.results[i] {
+				t.Errorf("wanted %s, got %s instead", test.results[i], got)
+			}
 		}
 	}
 }

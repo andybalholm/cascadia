@@ -45,10 +45,10 @@ func TestParseIdentifier(t *testing.T) {
 }
 
 var stringTests = map[string]string{
-	`"x"`: "x",
-	`'x'`: "x",
-	`'x`: "",
-	"'x\\\r\nx'": "xx",
+	`"x"`:         "x",
+	`'x'`:         "x",
+	`'x`:          "",
+	"'x\\\r\nx'":  "xx",
 	`"r\e9 sumé"`: "résumé",
 	`"a\"b"`:      `a"b`,
 }
@@ -84,5 +84,3 @@ func TestParseString(t *testing.T) {
 		}
 	}
 }
-
-

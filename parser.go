@@ -3,6 +3,7 @@ package cascadia
 
 import (
 	"fmt"
+	"html"
 	"os"
 	"strconv"
 )
@@ -130,7 +131,7 @@ loop:
 // parseString parses a single- or double-quoted string.
 func (p *parser) parseString() (result string, err os.Error) {
 	i := p.i
-	if len(p.s) < i + 2 {
+	if len(p.s) < i+2 {
 		return "", os.NewError("expected string, found EOF instead")
 	}
 
@@ -141,10 +142,10 @@ loop:
 	for i < len(p.s) {
 		switch p.s[i] {
 		case '\\':
-			if len(p.s) > i + 1 {
+			if len(p.s) > i+1 {
 				switch c := p.s[i+1]; c {
 				case '\r':
-					if len(p.s) > i + 2 && p.s[i+2] == '\n' {
+					if len(p.s) > i+2 && p.s[i+2] == '\n' {
 						i += 3
 						continue loop
 					}
@@ -196,4 +197,80 @@ func (p *parser) parseTypeSelector() (result Selector, err os.Error) {
 	}
 
 	return typeSelector(tag), nil
+}
+
+// parseIDSelector parses a selector that matches by id attribute.
+func (p *parser) parseIDSelector() (Selector, os.Error) {
+	if p.i >= len(p.s) {
+		return nil, fmt.Errorf("expected id selector (#id), found EOF instead")
+	}
+	if p.s[p.i] != '#' {
+		return nil, fmt.Errorf("expected id selector (#id), found '%c' instead", p.s[p.i])
+	}
+
+	p.i++
+	id, err := p.parseName()
+	if err != nil {
+		return nil, err
+	}
+
+	return attributeEqualsSelector("id", id), nil
+}
+
+// parseSimpleSelectorSequence parses a selector sequence that applies to
+// a single element.
+func (p *parser) parseSimpleSelectorSequence() (Selector, os.Error) {
+	var result Selector
+
+	if p.i >= len(p.s) {
+		return nil, os.NewError("expected selector, found EOF instead")
+	}
+
+	switch p.s[p.i] {
+	case '*':
+		// It's the universal selector. Just skip over it, since it doesn't affect the meaning.
+		p.i++
+	case '#', '.', '[', ':':
+		// There's no type selector. Wait to process the other till the main loop.
+	default:
+		r, err := p.parseTypeSelector()
+		if err != nil {
+			return nil, err
+		}
+		result = r
+	}
+
+loop:
+	for p.i < len(p.s) {
+		var ns Selector
+		var err os.Error
+		switch p.s[p.i] {
+		case '#':
+			ns, err = p.parseIDSelector()
+		case '.':
+			// TODO: parseClassSelector
+		case '[':
+			// TODO: parseAttributeSelector
+		case ':':
+			// TODO: parsePseudoclassSelector
+		default:
+			break loop
+		}
+		if err != nil {
+			return nil, err
+		}
+		if result == nil {
+			result = ns
+		} else {
+			result = intersectionSelector(result, ns)
+		}
+	}
+
+	if result == nil {
+		result = func(n *html.Node) bool {
+			return true
+		}
+	}
+
+	return result, nil
 }
