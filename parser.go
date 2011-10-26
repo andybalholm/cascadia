@@ -189,6 +189,27 @@ loop:
 	return result, nil
 }
 
+// skipWhitespace consumes whitespace characters. It returns true if there were
+// actually any spaces to skip.
+func (p *parser) skipWhitespace() bool {
+	i := p.i
+	for i < len(p.s) {
+		switch p.s[i] {
+		case ' ', '\t', '\r', '\n', '\f':
+			i++
+			continue
+		}
+		break
+	}
+
+	if i > p.i {
+		p.i = i
+		return true
+	}
+
+	return false
+}
+
 // parseTypeSelector parses a type selector (one that matches by tag name).
 func (p *parser) parseTypeSelector() (result Selector, err os.Error) {
 	tag, err := p.parseIdentifier()
@@ -215,6 +236,98 @@ func (p *parser) parseIDSelector() (Selector, os.Error) {
 	}
 
 	return attributeEqualsSelector("id", id), nil
+}
+
+// parseClassSelector parses a selector that matches by class attribute.
+func (p *parser) parseClassSelector() (Selector, os.Error) {
+	if p.i >= len(p.s) {
+		return nil, fmt.Errorf("expected class selector (.class), found EOF instead")
+	}
+	if p.s[p.i] != '.' {
+		return nil, fmt.Errorf("expected class selector (.class), found '%c' instead", p.s[p.i])
+	}
+
+	p.i++
+	class, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	return attributeIncludesSelector("class", class), nil
+}
+
+// parseAttributeSelector parses a selector that matches by attribute value.
+func (p *parser) parseAttributeSelector() (Selector, os.Error) {
+	if p.i >= len(p.s) {
+		return nil, fmt.Errorf("expected attribute selector ([attribute]), found EOF instead")
+	}
+	if p.s[p.i] != '[' {
+		return nil, fmt.Errorf("expected attribute selector ([attribute]), found '%c' instead", p.s[p.i])
+	}
+
+	p.i++
+	p.skipWhitespace()
+	key, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+
+	p.skipWhitespace()
+	if p.i >= len(p.s) {
+		return nil, os.NewError("unexpected EOF in attribute selector")
+	}
+
+	if p.s[p.i] == ']' {
+		p.i++
+		return attributeExistsSelector(key), nil
+	}
+
+	if p.i+2 >= len(p.s) {
+		return nil, os.NewError("unexpected EOF in attribute selector")
+	}
+
+	op := p.s[p.i : p.i+2]
+	if op[0] == '=' {
+		op = "="
+	} else if op[1] != '=' {
+		return nil, fmt.Errorf(`expected equality operator, found "%s" instead`, op)
+	}
+	p.i += len(op)
+
+	p.skipWhitespace()
+	if p.i >= len(p.s) {
+		return nil, os.NewError("unexpected EOF in attribute selector")
+	}
+	var val string
+	switch p.s[p.i] {
+	case '\'', '"':
+		val, err = p.parseString()
+	default:
+		val, err = p.parseIdentifier()
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	p.skipWhitespace()
+	if p.i >= len(p.s) {
+		return nil, os.NewError("unexpected EOF in attribute selector")
+	}
+	if p.s[p.i] != ']' {
+		return nil, fmt.Errorf("expected ']', found '%c' instead", p.s[p.i])
+	}
+	p.i++
+
+	switch op {
+	case "=":
+		return attributeEqualsSelector(key, val), nil
+	case "~=":
+		return attributeIncludesSelector(key, val), nil
+	case "|=":
+		return attributeDashmatchSelector(key, val), nil
+	}
+
+	return nil, fmt.Errorf("attribute operator %q is not supported", op)
 }
 
 // parseSimpleSelectorSequence parses a selector sequence that applies to
@@ -248,9 +361,9 @@ loop:
 		case '#':
 			ns, err = p.parseIDSelector()
 		case '.':
-			// TODO: parseClassSelector
+			ns, err = p.parseClassSelector()
 		case '[':
-			// TODO: parseAttributeSelector
+			ns, err = p.parseAttributeSelector()
 		case ':':
 			// TODO: parsePseudoclassSelector
 		default:

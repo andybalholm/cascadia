@@ -64,6 +64,71 @@ var selectorTests = []selectorTest{
 			`<li id="t4">`,
 		},
 	},
+	{
+		`<ul><li class="t1"><li class="t2">`,
+		".t1",
+		[]string{
+			`<li class="t1">`,
+		},
+	},
+	{
+		`<p class="t1 t2">`,
+		"p.t1",
+		[]string{
+			`<p class="t1 t2">`,
+		},
+	},
+	{
+		`<div class="test">`,
+		"div.teST",
+		[]string{},
+	},
+	{
+		`<p class="t1 t2">`,
+		".t1.fail",
+		[]string{},
+	},
+	{
+		`<p class="t1 t2">`,
+		"p.t1.t2",
+		[]string{
+			`<p class="t1 t2">`,
+		},
+	},
+	{
+		`<p><p title="title">`,
+		"p[title]",
+		[]string{
+			`<p title="title">`,
+		},
+	},
+	{
+		`<address><address title="foo"><address title="bar">`,
+		`address[title="foo"]`,
+		[]string{
+			`<address title="foo">`,
+		},
+	},
+	{
+		`<p title="tot foo bar">`,
+		`[    	title        ~=       foo    ]`,
+		[]string{
+			`<p title="tot foo bar">`,
+		},
+	},
+	{
+		`<p title="hello world">`,
+		`[title~="hello world"]`,
+		[]string{},
+	},
+	{
+		`<p lang="en"><p lang="en-gb"><p lang="enough"><p lang="fr-en">`,
+		`[lang|="en"]`,
+		[]string{
+			`<p lang="en">`,
+			`<p lang="en-gb">`,
+		},
+	},
 }
 
 func TestSelectors(t *testing.T) {

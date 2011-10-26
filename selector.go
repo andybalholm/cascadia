@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html"
 	"os"
+	"strings"
 )
 
 // the Selector type, and functions for creating them
@@ -69,14 +70,75 @@ func toLowerASCII(s string) string {
 	return string(b)
 }
 
+// attributeExistsSelector returns a Selector that matches nodes that have
+// an attribute named key.
+func attributeExistsSelector(key string) Selector {
+	key = toLowerASCII(key)
+	return func(n *html.Node) bool {
+		for _, a := range n.Attr {
+			if a.Key == key {
+				return true
+			}
+		}
+		return false
+	}
+}
+
 // attributeEqualsSelector returns a Selector that matches nodes where
-// the attributed named key has the value val.
+// the attribute named key has the value val.
 func attributeEqualsSelector(key, val string) Selector {
 	key = toLowerASCII(key)
 	return func(n *html.Node) bool {
 		for _, a := range n.Attr {
 			if a.Key == key {
 				return a.Val == val
+			}
+		}
+		return false
+	}
+}
+
+// attributeIncludesSelector returns a Selector that matches nodes where 
+// the attribute named key is a whitespace-separated list that includes val.
+func attributeIncludesSelector(key, val string) Selector {
+	key = toLowerASCII(key)
+	return func(n *html.Node) bool {
+		for _, a := range n.Attr {
+			if a.Key == key {
+				s := a.Val
+				for s != "" {
+					i := strings.IndexAny(s, " \t\r\n\f")
+					if i == -1 {
+						return s == val
+					}
+					if s[:i] == val {
+						return true
+					}
+					s = s[i+1:]
+				}
+			}
+		}
+		return false
+	}
+}
+
+// attributeDashmatchSelector returns a Selector that matches nodes where
+// the attribute named key equals val or starts with val plus a hyphen.
+func attributeDashmatchSelector(key, val string) Selector {
+	key = toLowerASCII(key)
+	return func(n *html.Node) bool {
+		for _, a := range n.Attr {
+			if a.Key == key {
+				if a.Val == val {
+					return true
+				}
+				if len(a.Val) <= len(val) {
+					return false
+				}
+				if a.Val[:len(val)] == val && a.Val[len(val)] == '-' {
+					return true
+				}
+				return false
 			}
 		}
 		return false
