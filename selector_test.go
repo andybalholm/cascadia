@@ -150,6 +150,18 @@ var selectorTests = []selectorTest{
 			`<p title="foobarufoo">`,
 		},
 	},
+	{
+		`<p class="t1 t2">`,
+		".t1:not(.t2)",
+		[]string{},
+	},
+	{
+		`<div class="t3">`,
+		`div:not(.t1)`,
+		[]string{
+			`<div class="t3">`,
+		},
+	},
 }
 
 func TestSelectors(t *testing.T) {

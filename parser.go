@@ -210,6 +210,30 @@ func (p *parser) skipWhitespace() bool {
 	return false
 }
 
+// consumeParenthesis consumes an opening parenthesis and any following
+// whitespace. It returns true if there was actually a parenthesis to skip.
+func (p *parser) consumeParenthesis() bool {
+	if p.i < len(p.s) && p.s[p.i] == '(' {
+		p.i++
+		p.skipWhitespace()
+		return true
+	}
+	return false
+}
+
+// consumeClosingParenthesis consumes a closing parenthesis and any preceding
+// whitespace. It returns true if there was actually a parenthesis to skip.
+func (p *parser) consumeClosingParenthesis() bool {
+	i := p.i
+	p.skipWhitespace()
+	if p.i < len(p.s) && p.s[p.i] == ')' {
+		p.i++
+		return true
+	}
+	p.i = i
+	return false
+}
+
 // parseTypeSelector parses a type selector (one that matches by tag name).
 func (p *parser) parseTypeSelector() (result Selector, err os.Error) {
 	tag, err := p.parseIdentifier()
@@ -336,6 +360,43 @@ func (p *parser) parseAttributeSelector() (Selector, os.Error) {
 	return nil, fmt.Errorf("attribute operator %q is not supported", op)
 }
 
+var expectedParenthesis = os.NewError("expected '(' but didn't find it")
+var expectedClosingParenthesis = os.NewError("expected ')' but didn't find it")
+
+// parsePseudoclassSelector parses a pseudoclass selector like :not(p).
+func (p *parser) parsePseudoclassSelector() (Selector, os.Error) {
+	if p.i >= len(p.s) {
+		return nil, fmt.Errorf("expected pseudoclass selector (:pseudoclass), found EOF instead")
+	}
+	if p.s[p.i] != ':' {
+		return nil, fmt.Errorf("expected attribute selector (:pseudoclass), found '%c' instead", p.s[p.i])
+	}
+
+	p.i++
+	name, err := p.parseIdentifier()
+	if err != nil {
+		return nil, err
+	}
+	name = toLowerASCII(name)
+
+	switch name {
+	case "not":
+		if !p.consumeParenthesis() {
+			return nil, expectedParenthesis
+		}
+		sel, err := p.parseSimpleSelectorSequence()
+		if err != nil {
+			return nil, err
+		}
+		if !p.consumeClosingParenthesis() {
+			return nil, expectedClosingParenthesis
+		}
+		return negatedSelector(sel), nil
+	}
+
+	return nil, fmt.Errorf("unknown pseudoclass :%s", name)
+}
+
 // parseSimpleSelectorSequence parses a selector sequence that applies to
 // a single element.
 func (p *parser) parseSimpleSelectorSequence() (Selector, os.Error) {
@@ -371,7 +432,7 @@ loop:
 		case '[':
 			ns, err = p.parseAttributeSelector()
 		case ':':
-			// TODO: parsePseudoclassSelector
+			ns, err = p.parsePseudoclassSelector()
 		default:
 			break loop
 		}

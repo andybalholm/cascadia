@@ -194,3 +194,10 @@ func intersectionSelector(a, b Selector) Selector {
 		return a(n) && b(n)
 	}
 }
+
+// negatedSelector returns a selector that matches nodes that do not match a.
+func negatedSelector(a Selector) Selector {
+	return func(n *html.Node) bool {
+		return !a(n)
+	}
+}
