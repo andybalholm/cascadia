@@ -325,6 +325,12 @@ func (p *parser) parseAttributeSelector() (Selector, os.Error) {
 		return attributeIncludesSelector(key, val), nil
 	case "|=":
 		return attributeDashmatchSelector(key, val), nil
+	case "^=":
+		return attributePrefixSelector(key, val), nil
+	case "$=":
+		return attributeSuffixSelector(key, val), nil
+	case "*=":
+		return attributeSubstringSelector(key, val), nil
 	}
 
 	return nil, fmt.Errorf("attribute operator %q is not supported", op)

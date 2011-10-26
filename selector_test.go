@@ -129,6 +129,27 @@ var selectorTests = []selectorTest{
 			`<p lang="en-gb">`,
 		},
 	},
+	{
+		`<p title="foobar"><p title="barfoo">`,
+		`[title^="foo"]`,
+		[]string{
+			`<p title="foobar">`,
+		},
+	},
+	{
+		`<p title="foobar"><p title="barfoo">`,
+		`[title$="bar"]`,
+		[]string{
+			`<p title="foobar">`,
+		},
+	},
+	{
+		`<p title="foobarufoo">`,
+		`[title*="bar"]`,
+		[]string{
+			`<p title="foobarufoo">`,
+		},
+	},
 }
 
 func TestSelectors(t *testing.T) {

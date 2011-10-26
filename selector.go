@@ -145,6 +145,48 @@ func attributeDashmatchSelector(key, val string) Selector {
 	}
 }
 
+// attributePrefixSelector returns a Selector that matches nodes where
+// the attribute named key starts with val.
+func attributePrefixSelector(key, val string) Selector {
+	key = toLowerASCII(key)
+	return func(n *html.Node) bool {
+		for _, a := range n.Attr {
+			if a.Key == key {
+				return strings.HasPrefix(a.Val, val)
+			}
+		}
+		return false
+	}
+}
+
+// attributeSuffixSelector returns a Selector that matches nodes where
+// the attribute named key ends with val.
+func attributeSuffixSelector(key, val string) Selector {
+	key = toLowerASCII(key)
+	return func(n *html.Node) bool {
+		for _, a := range n.Attr {
+			if a.Key == key {
+				return strings.HasSuffix(a.Val, val)
+			}
+		}
+		return false
+	}
+}
+
+// attributeSubstringSelector returns a Selector that matches nodes where
+// the attribute named key contains val.
+func attributeSubstringSelector(key, val string) Selector {
+	key = toLowerASCII(key)
+	return func(n *html.Node) bool {
+		for _, a := range n.Attr {
+			if a.Key == key {
+				return strings.Contains(a.Val, val)
+			}
+		}
+		return false
+	}
+}
+
 // intersectionSelector returns a selector that matches nodes that match
 // both a and b.
 func intersectionSelector(a, b Selector) Selector {
