@@ -162,6 +162,36 @@ var selectorTests = []selectorTest{
 			`<div class="t3">`,
 		},
 	},
+	{
+		`<ol><li id=1><li id=2><li id=3></ol>`,
+		`li:nth-child(odd)`,
+		[]string{
+			`<li id="1">`,
+			`<li id="3">`,
+		},
+	},
+	{
+		`<ol><li id=1><li id=2><li id=3></ol>`,
+		`li:nth-child(even)`,
+		[]string{
+			`<li id="2">`,
+		},
+	},
+	{
+		`<ol><li id=1><li id=2><li id=3></ol>`,
+		`li:nth-child(-n+2)`,
+		[]string{
+			`<li id="1">`,
+			`<li id="2">`,
+		},
+	},
+	{
+		`<ol><li id=1><li id=2><li id=3></ol>`,
+		`li:nth-child(3n+1)`,
+		[]string{
+			`<li id="1">`,
+		},
+	},
 }
 
 func TestSelectors(t *testing.T) {

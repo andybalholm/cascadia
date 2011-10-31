@@ -392,9 +392,162 @@ func (p *parser) parsePseudoclassSelector() (Selector, os.Error) {
 			return nil, expectedClosingParenthesis
 		}
 		return negatedSelector(sel), nil
+	case "nth-child":
+		if !p.consumeParenthesis() {
+			return nil, expectedParenthesis
+		}
+		a, b, err := p.parseNth()
+		if err != nil {
+			return nil, err
+		}
+		if !p.consumeClosingParenthesis() {
+			return nil, expectedClosingParenthesis
+		}
+		return nthChildSelector(a, b), nil
 	}
 
 	return nil, fmt.Errorf("unknown pseudoclass :%s", name)
+}
+
+// parseInteger parses a  decimal integer.
+func (p *parser) parseInteger() (int, os.Error) {
+	i := p.i
+	start := i
+	for i < len(p.s) && '0' <= p.s[i] && p.s[i] <= '9' {
+		i++
+	}
+	if i == start {
+		return 0, os.NewError("expected integer, but didn't find it.")
+	}
+	p.i = i
+
+	val, err := strconv.Atoi(p.s[start:i])
+	if err != nil {
+		return 0, err
+	}
+
+	return val, nil
+}
+
+// parseNth parses the argument for :nth-child (normally of the form an+b).
+func (p *parser) parseNth() (a, b int, err os.Error) {
+	// initial state
+	if p.i >= len(p.s) {
+		goto eof
+	}
+	switch p.s[p.i] {
+	case '-':
+		p.i++
+		goto negativeA
+	case '+':
+		p.i++
+		goto positiveA
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		goto positiveA
+	case 'n', 'N':
+		a = 1
+		p.i++
+		goto readN
+	case 'o', 'O', 'e', 'E':
+		id, err := p.parseName()
+		if err != nil {
+			return 0, 0, err
+		}
+		id = toLowerASCII(id)
+		if id == "odd" {
+			return 2, 1, nil
+		}
+		if id == "even" {
+			return 2, 0, nil
+		}
+		return 0, 0, fmt.Errorf("expected 'odd' or 'even', but found '%s' instead", id)
+	default:
+		goto invalid
+	}
+
+positiveA:
+	if p.i >= len(p.s) {
+		goto eof
+	}
+	switch p.s[p.i] {
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		a, err = p.parseInteger()
+		if err != nil {
+			return 0, 0, err
+		}
+		goto readA
+	case 'n', 'N':
+		a = 1
+		p.i++
+		goto readN
+	default:
+		goto invalid
+	}
+
+negativeA:
+	if p.i >= len(p.s) {
+		goto eof
+	}
+	switch p.s[p.i] {
+	case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+		a, err = p.parseInteger()
+		if err != nil {
+			return 0, 0, err
+		}
+		a = -a
+		goto readA
+	case 'n', 'N':
+		a = -1
+		p.i++
+		goto readN
+	default:
+		goto invalid
+	}
+
+readA:
+	if p.i >= len(p.s) {
+		goto eof
+	}
+	switch p.s[p.i] {
+	case 'n', 'N':
+		p.i++
+		goto readN
+	default:
+		// The number we read as a is actually b.
+		return 0, a, nil
+	}
+
+readN:
+	p.skipWhitespace()
+	if p.i >= len(p.s) {
+		goto eof
+	}
+	switch p.s[p.i] {
+	case '+':
+		p.i++
+		p.skipWhitespace()
+		b, err = p.parseInteger()
+		if err != nil {
+			return 0, 0, err
+		}
+		return a, b, nil
+	case '-':
+		p.i++
+		p.skipWhitespace()
+		b, err = p.parseInteger()
+		if err != nil {
+			return 0, 0, err
+		}
+		return a, -b, nil
+	default:
+		return a, 0, nil
+	}
+
+eof:
+	return 0, 0, os.NewError("unexpected EOF while attempting to parse expression of form an+b")
+
+invalid:
+	return 0, 0, os.NewError("unexpected character while attempting to parse expression of form an+b")
 }
 
 // parseSimpleSelectorSequence parses a selector sequence that applies to
