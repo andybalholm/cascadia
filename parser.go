@@ -392,7 +392,7 @@ func (p *parser) parsePseudoclassSelector() (Selector, os.Error) {
 			return nil, expectedClosingParenthesis
 		}
 		return negatedSelector(sel), nil
-	case "nth-child":
+	case "nth-child", "nth-last-child":
 		if !p.consumeParenthesis() {
 			return nil, expectedParenthesis
 		}
@@ -403,7 +403,7 @@ func (p *parser) parsePseudoclassSelector() (Selector, os.Error) {
 		if !p.consumeClosingParenthesis() {
 			return nil, expectedClosingParenthesis
 		}
-		return nthChildSelector(a, b), nil
+		return nthChildSelector(a, b, name == "nth-last-child"), nil
 	}
 
 	return nil, fmt.Errorf("unknown pseudoclass :%s", name)

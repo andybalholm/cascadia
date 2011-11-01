@@ -203,7 +203,8 @@ func negatedSelector(a Selector) Selector {
 }
 
 // nthChildSelector returns a selector that implements :nth-child(an+b).
-func nthChildSelector(a, b int) Selector {
+// If last is true, implements :nth-last-child instead.
+func nthChildSelector(a, b int, last bool) Selector {
 	return func(n *html.Node) bool {
 		parent := n.Parent
 		if parent == nil {
@@ -222,7 +223,12 @@ func nthChildSelector(a, b int) Selector {
 			return false
 		}
 
-		i++
+		if last {
+			i = len(c) - i
+		} else {
+			i++
+		}
+
 		i -= b
 		if a == 0 {
 			return i == 0
