@@ -41,7 +41,7 @@ func (s Selector) MatchAll(n *html.Node) (result []*html.Node) {
 	return
 }
 
-// typeSelector returns a Selector that matches nodes with a given tag name.
+// typeSelector returns a Selector that matches elements with a given tag name.
 func typeSelector(tag string) Selector {
 	tag = toLowerASCII(tag)
 	return func(n *html.Node) bool {
@@ -69,13 +69,16 @@ func toLowerASCII(s string) string {
 	return string(b)
 }
 
-// attributeExistsSelector returns a Selector that matches nodes that have
-// an attribute named key.
-func attributeExistsSelector(key string) Selector {
+// attributeSelector returns a Selector that matches elements
+// where the attribute named key satisifes the function f.
+func attributeSelector(key string, f func(string) bool) Selector {
 	key = toLowerASCII(key)
 	return func(n *html.Node) bool {
+		if n.Type != html.ElementNode {
+			return false
+		}
 		for _, a := range n.Attr {
-			if a.Key == key {
+			if a.Key == key && f(a.Val) {
 				return true
 			}
 		}
@@ -83,107 +86,83 @@ func attributeExistsSelector(key string) Selector {
 	}
 }
 
-// attributeEqualsSelector returns a Selector that matches nodes where
+// attributeExistsSelector returns a Selector that matches elements that have
+// an attribute named key.
+func attributeExistsSelector(key string) Selector {
+	return attributeSelector(key, func(string) bool { return true })
+}
+
+// attributeEqualsSelector returns a Selector that matches elements where
 // the attribute named key has the value val.
 func attributeEqualsSelector(key, val string) Selector {
-	key = toLowerASCII(key)
-	return func(n *html.Node) bool {
-		for _, a := range n.Attr {
-			if a.Key == key {
-				return a.Val == val
-			}
-		}
-		return false
-	}
+	return attributeSelector(key,
+		func(s string) bool {
+			return s == val
+		})
 }
 
-// attributeIncludesSelector returns a Selector that matches nodes where 
+// attributeIncludesSelector returns a Selector that matches elements where 
 // the attribute named key is a whitespace-separated list that includes val.
 func attributeIncludesSelector(key, val string) Selector {
-	key = toLowerASCII(key)
-	return func(n *html.Node) bool {
-		for _, a := range n.Attr {
-			if a.Key == key {
-				s := a.Val
-				for s != "" {
-					i := strings.IndexAny(s, " \t\r\n\f")
-					if i == -1 {
-						return s == val
-					}
-					if s[:i] == val {
-						return true
-					}
-					s = s[i+1:]
+	return attributeSelector(key,
+		func(s string) bool {
+			for s != "" {
+				i := strings.IndexAny(s, " \t\r\n\f")
+				if i == -1 {
+					return s == val
 				}
+				if s[:i] == val {
+					return true
+				}
+				s = s[i+1:]
 			}
-		}
-		return false
-	}
+			return false
+		})
 }
 
-// attributeDashmatchSelector returns a Selector that matches nodes where
+// attributeDashmatchSelector returns a Selector that matches elements where
 // the attribute named key equals val or starts with val plus a hyphen.
 func attributeDashmatchSelector(key, val string) Selector {
-	key = toLowerASCII(key)
-	return func(n *html.Node) bool {
-		for _, a := range n.Attr {
-			if a.Key == key {
-				if a.Val == val {
-					return true
-				}
-				if len(a.Val) <= len(val) {
-					return false
-				}
-				if a.Val[:len(val)] == val && a.Val[len(val)] == '-' {
-					return true
-				}
+	return attributeSelector(key,
+		func(s string) bool {
+			if s == val {
+				return true
+			}
+			if len(s) <= len(val) {
 				return false
 			}
-		}
-		return false
-	}
+			if s[:len(val)] == val && s[len(val)] == '-' {
+				return true
+			}
+			return false
+		})
 }
 
-// attributePrefixSelector returns a Selector that matches nodes where
+// attributePrefixSelector returns a Selector that matches elements where
 // the attribute named key starts with val.
 func attributePrefixSelector(key, val string) Selector {
-	key = toLowerASCII(key)
-	return func(n *html.Node) bool {
-		for _, a := range n.Attr {
-			if a.Key == key {
-				return strings.HasPrefix(a.Val, val)
-			}
-		}
-		return false
-	}
+	return attributeSelector(key,
+		func(s string) bool {
+			return strings.HasPrefix(s, val)
+		})
 }
 
-// attributeSuffixSelector returns a Selector that matches nodes where
+// attributeSuffixSelector returns a Selector that matches elements where
 // the attribute named key ends with val.
 func attributeSuffixSelector(key, val string) Selector {
-	key = toLowerASCII(key)
-	return func(n *html.Node) bool {
-		for _, a := range n.Attr {
-			if a.Key == key {
-				return strings.HasSuffix(a.Val, val)
-			}
-		}
-		return false
-	}
+	return attributeSelector(key,
+		func(s string) bool {
+			return strings.HasSuffix(s, val)
+		})
 }
 
 // attributeSubstringSelector returns a Selector that matches nodes where
 // the attribute named key contains val.
 func attributeSubstringSelector(key, val string) Selector {
-	key = toLowerASCII(key)
-	return func(n *html.Node) bool {
-		for _, a := range n.Attr {
-			if a.Key == key {
-				return strings.Contains(a.Val, val)
-			}
-		}
-		return false
-	}
+	return attributeSelector(key,
+		func(s string) bool {
+			return strings.Contains(s, val)
+		})
 }
 
 // intersectionSelector returns a selector that matches nodes that match
@@ -203,29 +182,40 @@ func negatedSelector(a Selector) Selector {
 
 // nthChildSelector returns a selector that implements :nth-child(an+b).
 // If last is true, implements :nth-last-child instead.
-func nthChildSelector(a, b int, last bool) Selector {
+// If ofType is true, implements :nth-of-type instead.
+func nthChildSelector(a, b int, last, ofType bool) Selector {
 	return func(n *html.Node) bool {
+		if n.Type != html.ElementNode {
+			return false
+		}
+
 		parent := n.Parent
 		if parent == nil {
 			return false
 		}
 
-		var i int
-		c := parent.Child
-		for i = 0; i < len(c); i++ {
-			if c[i] == n {
-				break
+		i := -1
+		count := 0
+		for _, c := range parent.Child {
+			if (c.Type != html.ElementNode) || (ofType && c.Data != n.Data) {
+				continue
+			}
+			count++
+			if c == n {
+				i = count
+				if !last {
+					break
+				}
 			}
 		}
 
-		if i == len(c) {
+		if i == -1 {
+			// This shouldn't happen, since n should always be one of its parent's children.
 			return false
 		}
 
 		if last {
-			i = len(c) - i
-		} else {
-			i++
+			i = count - i + 1
 		}
 
 		i -= b

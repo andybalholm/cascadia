@@ -224,6 +224,48 @@ var selectorTests = []selectorTest{
 			`<li id="4">`,
 		},
 	},
+	{
+		`<p>some text <span id="1">and a span</span><span id="2"> and another</span></p>`,
+		`span:first-child`,
+		[]string{
+			`<span id="1">`,
+		},
+	},
+	{
+		`<span>a span</span> and some text`,
+		`span:last-child`,
+		[]string{
+			`<span>`,
+		},
+	},
+	{
+		`<address></address><p id=1><p id=2>`,
+		`p:nth-of-type(2)`,
+		[]string{
+			`<p id="2">`,
+		},
+	},
+	{
+		`<address></address><p id=1><p id=2></p><a>`,
+		`p:nth-last-of-type(2)`,
+		[]string{
+			`<p id="1">`,
+		},
+	},
+	{
+		`<address></address><p id=1><p id=2></p><a>`,
+		`p:last-of-type`,
+		[]string{
+			`<p id="2">`,
+		},
+	},
+	{
+		`<address></address><p id=1><p id=2></p><a>`,
+		`p:first-of-type`,
+		[]string{
+			`<p id="1">`,
+		},
+	},
 }
 
 func TestSelectors(t *testing.T) {
