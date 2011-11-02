@@ -3,7 +3,6 @@ package cascadia
 import (
 	"fmt"
 	"html"
-	"os"
 	"strings"
 )
 
@@ -14,7 +13,7 @@ type Selector func(*html.Node) bool
 
 // Compile parses a selector and returns, if successful, a Selector object
 // that can be used to match against html.Node objects.
-func Compile(sel string) (Selector, os.Error) {
+func Compile(sel string) (Selector, error) {
 	p := &parser{s: sel}
 	compiled, err := p.parseSimpleSelectorSequence() // TODO: more complicated selectors
 	if err != nil {

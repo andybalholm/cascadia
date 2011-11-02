@@ -2,9 +2,9 @@
 package cascadia
 
 import (
+	"errors"
 	"fmt"
 	"html"
-	"os"
 	"strconv"
 )
 
@@ -15,16 +15,16 @@ type parser struct {
 }
 
 // parseEscape parses a backslash escape.
-func (p *parser) parseEscape() (result string, err os.Error) {
+func (p *parser) parseEscape() (result string, err error) {
 	if len(p.s) < p.i+2 || p.s[p.i] != '\\' {
-		return "", os.NewError("invalid escape sequence")
+		return "", errors.New("invalid escape sequence")
 	}
 
 	start := p.i + 1
 	c := p.s[start]
 	switch {
 	case c == '\r' || c == '\n' || c == '\f':
-		return "", os.NewError("escaped line ending outside string")
+		return "", errors.New("escaped line ending outside string")
 	case hexDigit(c):
 		// unicode escape (hex)
 		var i int
@@ -71,7 +71,7 @@ func nameChar(c byte) bool {
 }
 
 // parseIdentifier parses an identifier.
-func (p *parser) parseIdentifier() (result string, err os.Error) {
+func (p *parser) parseIdentifier() (result string, err error) {
 	startingDash := false
 	if len(p.s) > p.i && p.s[p.i] == '-' {
 		startingDash = true
@@ -79,7 +79,7 @@ func (p *parser) parseIdentifier() (result string, err os.Error) {
 	}
 
 	if len(p.s) <= p.i {
-		return "", os.NewError("expected identifier, found EOF instead")
+		return "", errors.New("expected identifier, found EOF instead")
 	}
 
 	if c := p.s[p.i]; !(nameStart(c) || c == '\\') {
@@ -95,7 +95,7 @@ func (p *parser) parseIdentifier() (result string, err os.Error) {
 
 // parseName parses a name (which is like an identifier, but doesn't have
 // extra restrictions on the first character).
-func (p *parser) parseName() (result string, err os.Error) {
+func (p *parser) parseName() (result string, err error) {
 	i := p.i
 loop:
 	for i < len(p.s) {
@@ -121,7 +121,7 @@ loop:
 	}
 
 	if result == "" {
-		return "", os.NewError("expected name, found EOF instead")
+		return "", errors.New("expected name, found EOF instead")
 	}
 
 	p.i = i
@@ -129,10 +129,10 @@ loop:
 }
 
 // parseString parses a single- or double-quoted string.
-func (p *parser) parseString() (result string, err os.Error) {
+func (p *parser) parseString() (result string, err error) {
 	i := p.i
 	if len(p.s) < i+2 {
-		return "", os.NewError("expected string, found EOF instead")
+		return "", errors.New("expected string, found EOF instead")
 	}
 
 	quote := p.s[i]
@@ -165,7 +165,7 @@ loop:
 		case quote:
 			break loop
 		case '\r', '\n', '\f':
-			return "", os.NewError("unexpected end of line in string")
+			return "", errors.New("unexpected end of line in string")
 		default:
 			start := i
 			for i < len(p.s) {
@@ -179,7 +179,7 @@ loop:
 	}
 
 	if i >= len(p.s) {
-		return "", os.NewError("EOF in string")
+		return "", errors.New("EOF in string")
 	}
 
 	// Consume the final quote.
@@ -235,7 +235,7 @@ func (p *parser) consumeClosingParenthesis() bool {
 }
 
 // parseTypeSelector parses a type selector (one that matches by tag name).
-func (p *parser) parseTypeSelector() (result Selector, err os.Error) {
+func (p *parser) parseTypeSelector() (result Selector, err error) {
 	tag, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err
@@ -245,7 +245,7 @@ func (p *parser) parseTypeSelector() (result Selector, err os.Error) {
 }
 
 // parseIDSelector parses a selector that matches by id attribute.
-func (p *parser) parseIDSelector() (Selector, os.Error) {
+func (p *parser) parseIDSelector() (Selector, error) {
 	if p.i >= len(p.s) {
 		return nil, fmt.Errorf("expected id selector (#id), found EOF instead")
 	}
@@ -263,7 +263,7 @@ func (p *parser) parseIDSelector() (Selector, os.Error) {
 }
 
 // parseClassSelector parses a selector that matches by class attribute.
-func (p *parser) parseClassSelector() (Selector, os.Error) {
+func (p *parser) parseClassSelector() (Selector, error) {
 	if p.i >= len(p.s) {
 		return nil, fmt.Errorf("expected class selector (.class), found EOF instead")
 	}
@@ -281,7 +281,7 @@ func (p *parser) parseClassSelector() (Selector, os.Error) {
 }
 
 // parseAttributeSelector parses a selector that matches by attribute value.
-func (p *parser) parseAttributeSelector() (Selector, os.Error) {
+func (p *parser) parseAttributeSelector() (Selector, error) {
 	if p.i >= len(p.s) {
 		return nil, fmt.Errorf("expected attribute selector ([attribute]), found EOF instead")
 	}
@@ -298,7 +298,7 @@ func (p *parser) parseAttributeSelector() (Selector, os.Error) {
 
 	p.skipWhitespace()
 	if p.i >= len(p.s) {
-		return nil, os.NewError("unexpected EOF in attribute selector")
+		return nil, errors.New("unexpected EOF in attribute selector")
 	}
 
 	if p.s[p.i] == ']' {
@@ -307,7 +307,7 @@ func (p *parser) parseAttributeSelector() (Selector, os.Error) {
 	}
 
 	if p.i+2 >= len(p.s) {
-		return nil, os.NewError("unexpected EOF in attribute selector")
+		return nil, errors.New("unexpected EOF in attribute selector")
 	}
 
 	op := p.s[p.i : p.i+2]
@@ -320,7 +320,7 @@ func (p *parser) parseAttributeSelector() (Selector, os.Error) {
 
 	p.skipWhitespace()
 	if p.i >= len(p.s) {
-		return nil, os.NewError("unexpected EOF in attribute selector")
+		return nil, errors.New("unexpected EOF in attribute selector")
 	}
 	var val string
 	switch p.s[p.i] {
@@ -335,7 +335,7 @@ func (p *parser) parseAttributeSelector() (Selector, os.Error) {
 
 	p.skipWhitespace()
 	if p.i >= len(p.s) {
-		return nil, os.NewError("unexpected EOF in attribute selector")
+		return nil, errors.New("unexpected EOF in attribute selector")
 	}
 	if p.s[p.i] != ']' {
 		return nil, fmt.Errorf("expected ']', found '%c' instead", p.s[p.i])
@@ -360,11 +360,11 @@ func (p *parser) parseAttributeSelector() (Selector, os.Error) {
 	return nil, fmt.Errorf("attribute operator %q is not supported", op)
 }
 
-var expectedParenthesis = os.NewError("expected '(' but didn't find it")
-var expectedClosingParenthesis = os.NewError("expected ')' but didn't find it")
+var expectedParenthesis = errors.New("expected '(' but didn't find it")
+var expectedClosingParenthesis = errors.New("expected ')' but didn't find it")
 
 // parsePseudoclassSelector parses a pseudoclass selector like :not(p).
-func (p *parser) parsePseudoclassSelector() (Selector, os.Error) {
+func (p *parser) parsePseudoclassSelector() (Selector, error) {
 	if p.i >= len(p.s) {
 		return nil, fmt.Errorf("expected pseudoclass selector (:pseudoclass), found EOF instead")
 	}
@@ -410,14 +410,14 @@ func (p *parser) parsePseudoclassSelector() (Selector, os.Error) {
 }
 
 // parseInteger parses a  decimal integer.
-func (p *parser) parseInteger() (int, os.Error) {
+func (p *parser) parseInteger() (int, error) {
 	i := p.i
 	start := i
 	for i < len(p.s) && '0' <= p.s[i] && p.s[i] <= '9' {
 		i++
 	}
 	if i == start {
-		return 0, os.NewError("expected integer, but didn't find it.")
+		return 0, errors.New("expected integer, but didn't find it.")
 	}
 	p.i = i
 
@@ -430,7 +430,7 @@ func (p *parser) parseInteger() (int, os.Error) {
 }
 
 // parseNth parses the argument for :nth-child (normally of the form an+b).
-func (p *parser) parseNth() (a, b int, err os.Error) {
+func (p *parser) parseNth() (a, b int, err error) {
 	// initial state
 	if p.i >= len(p.s) {
 		goto eof
@@ -544,19 +544,19 @@ readN:
 	}
 
 eof:
-	return 0, 0, os.NewError("unexpected EOF while attempting to parse expression of form an+b")
+	return 0, 0, errors.New("unexpected EOF while attempting to parse expression of form an+b")
 
 invalid:
-	return 0, 0, os.NewError("unexpected character while attempting to parse expression of form an+b")
+	return 0, 0, errors.New("unexpected character while attempting to parse expression of form an+b")
 }
 
 // parseSimpleSelectorSequence parses a selector sequence that applies to
 // a single element.
-func (p *parser) parseSimpleSelectorSequence() (Selector, os.Error) {
+func (p *parser) parseSimpleSelectorSequence() (Selector, error) {
 	var result Selector
 
 	if p.i >= len(p.s) {
-		return nil, os.NewError("expected selector, found EOF instead")
+		return nil, errors.New("expected selector, found EOF instead")
 	}
 
 	switch p.s[p.i] {
@@ -576,7 +576,7 @@ func (p *parser) parseSimpleSelectorSequence() (Selector, os.Error) {
 loop:
 	for p.i < len(p.s) {
 		var ns Selector
-		var err os.Error
+		var err error
 		switch p.s[p.i] {
 		case '#':
 			ns, err = p.parseIDSelector()
