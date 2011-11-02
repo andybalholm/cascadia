@@ -415,6 +415,10 @@ func (p *parser) parsePseudoclassSelector() (Selector, error) {
 		return nthChildSelector(0, 1, false, true), nil
 	case "last-of-type":
 		return nthChildSelector(0, 1, true, true), nil
+	case "only-child":
+		return onlyChildSelector(false), nil
+	case "only-of-type":
+		return onlyChildSelector(true), nil
 	}
 
 	return nil, fmt.Errorf("unknown pseudoclass :%s", name)

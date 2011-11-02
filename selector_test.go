@@ -266,6 +266,20 @@ var selectorTests = []selectorTest{
 			`<p id="1">`,
 		},
 	},
+	{
+		`<div><p id="1"></p><a></a></div><div><p id="2"></p></div>`,
+		`p:only-child`,
+		[]string{
+			`<p id="2">`,
+		},
+	},
+	{
+		`<div><p id="1"></p><a></a></div><div><p id="2"></p><p id="3"></p></div>`,
+		`p:only-of-type`,
+		[]string{
+			`<p id="1">`,
+		},
+	},
 }
 
 func TestSelectors(t *testing.T) {

@@ -226,3 +226,31 @@ func nthChildSelector(a, b int, last, ofType bool) Selector {
 		return i%a == 0 && i/a >= 0
 	}
 }
+
+// onlyChildSelector returns a selector that implements :only-child.
+// If ofType is true, it implements :only-of-type instead.
+func onlyChildSelector(ofType bool) Selector {
+	return func(n *html.Node) bool {
+		if n.Type != html.ElementNode {
+			return false
+		}
+
+		parent := n.Parent
+		if parent == nil {
+			return false
+		}
+
+		count := 0
+		for _, c := range parent.Child {
+			if (c.Type != html.ElementNode) || (ofType && c.Data != n.Data) {
+				continue
+			}
+			count++
+			if count > 1 {
+				return false
+			}
+		}
+
+		return count == 1
+	}
+}
