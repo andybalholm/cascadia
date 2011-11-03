@@ -419,6 +419,8 @@ func (p *parser) parsePseudoclassSelector() (Selector, error) {
 		return onlyChildSelector(false), nil
 	case "only-of-type":
 		return onlyChildSelector(true), nil
+	case "empty":
+		return emptyElementSelector, nil
 	}
 
 	return nil, fmt.Errorf("unknown pseudoclass :%s", name)

@@ -254,3 +254,19 @@ func onlyChildSelector(ofType bool) Selector {
 		return count == 1
 	}
 }
+
+// emptyElementSelector is a Selector that matches empty elements.
+func emptyElementSelector(n *html.Node) bool {
+	if n.Type != html.ElementNode {
+		return false
+	}
+
+	for _, c := range n.Child {
+		switch c.Type {
+		case html.ElementNode, html.TextNode:
+			return false
+		}
+	}
+
+	return true
+}

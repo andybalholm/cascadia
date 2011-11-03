@@ -280,6 +280,15 @@ var selectorTests = []selectorTest{
 			`<p id="1">`,
 		},
 	},
+	{
+		`<p id="1"><!-- --><p id="2">Hello<p id="3"><span>`,
+		`:empty`,
+		[]string{
+			`<head>`,
+			`<p id="1">`,
+			`<span>`,
+		},
+	},
 }
 
 func TestSelectors(t *testing.T) {
