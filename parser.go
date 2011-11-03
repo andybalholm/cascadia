@@ -384,7 +384,7 @@ func (p *parser) parsePseudoclassSelector() (Selector, error) {
 		if !p.consumeParenthesis() {
 			return nil, expectedParenthesis
 		}
-		sel, err := p.parseSelector()
+		sel, err := p.parseSelectorGroup()
 		if err != nil {
 			return nil, err
 		}
@@ -668,4 +668,26 @@ func (p *parser) parseSelector() (result Selector, err error) {
 	}
 
 	panic("unreachable")
+}
+
+// parseSelectorGroup parses a group of selectors, separated by commas.
+func (p *parser) parseSelectorGroup() (result Selector, err error) {
+	result, err = p.parseSelector()
+	if err != nil {
+		return
+	}
+
+	for p.i < len(p.s) {
+		if p.s[p.i] != ',' {
+			return result, nil
+		}
+		p.i++
+		c, err := p.parseSelector()
+		if err != nil {
+			return nil, err
+		}
+		result = unionSelector(result, c)
+	}
+
+	return
 }

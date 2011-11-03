@@ -327,6 +327,15 @@ var selectorTests = []selectorTest{
 			`<p id="2">`,
 		},
 	},
+	{
+		`<ul><li></li><li></li></ul><p>`,
+		`li, p`,
+		[]string{
+			"<li>",
+			"<li>",
+			"<p>",
+		},
+	},
 }
 
 func TestSelectors(t *testing.T) {

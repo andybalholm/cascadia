@@ -15,7 +15,7 @@ type Selector func(*html.Node) bool
 // that can be used to match against html.Node objects.
 func Compile(sel string) (Selector, error) {
 	p := &parser{s: sel}
-	compiled, err := p.parseSelector() // TODO: more complicated selectors
+	compiled, err := p.parseSelectorGroup()
 	if err != nil {
 		return nil, err
 	}
@@ -170,6 +170,14 @@ func attributeSubstringSelector(key, val string) Selector {
 func intersectionSelector(a, b Selector) Selector {
 	return func(n *html.Node) bool {
 		return a(n) && b(n)
+	}
+}
+
+// unionSelector returns a selector that matches elements that match
+// either a or b.
+func unionSelector(a, b Selector) Selector {
+	return func(n *html.Node) bool {
+		return a(n) || b(n)
 	}
 }
 
