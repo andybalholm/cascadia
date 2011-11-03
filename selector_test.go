@@ -289,6 +289,44 @@ var selectorTests = []selectorTest{
 			`<span>`,
 		},
 	},
+	{
+		`<div><p id="1"><table><tr><td><p id="2"></table></div><p id="3">`,
+		`div p`,
+		[]string{
+			`<p id="1">`,
+			`<p id="2">`,
+		},
+	},
+	{
+		`<div><p id="1"><table><tr><td><p id="2"></table></div><p id="3">`,
+		`div table p`,
+		[]string{
+			`<p id="2">`,
+		},
+	},
+	{
+		`<div><p id="1"><div><p id="2"></div><table><tr><td><p id="3"></table></div>`,
+		`div > p`,
+		[]string{
+			`<p id="1">`,
+			`<p id="2">`,
+		},
+	},
+	{
+		`<p id="1"><p id="2"></p><address></address><p id="3">`,
+		`p ~ p`,
+		[]string{
+			`<p id="2">`,
+			`<p id="3">`,
+		},
+	},
+	{
+		`<p id="1"><p id="2"></p><address></address><p id="3">`,
+		`p + p`,
+		[]string{
+			`<p id="2">`,
+		},
+	},
 }
 
 func TestSelectors(t *testing.T) {

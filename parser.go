@@ -384,7 +384,7 @@ func (p *parser) parsePseudoclassSelector() (Selector, error) {
 		if !p.consumeParenthesis() {
 			return nil, expectedParenthesis
 		}
-		sel, err := p.parseSimpleSelectorSequence()
+		sel, err := p.parseSelector()
 		if err != nil {
 			return nil, err
 		}
@@ -623,4 +623,49 @@ loop:
 	}
 
 	return result, nil
+}
+
+// parseSelector parses a selector that may include combinators.
+func (p *parser) parseSelector() (result Selector, err error) {
+	p.skipWhitespace()
+	result, err = p.parseSimpleSelectorSequence()
+	if err != nil {
+		return
+	}
+
+	for {
+		p.skipWhitespace()
+		if p.i >= len(p.s) {
+			return
+		}
+
+		var combinator byte = ' '
+		switch p.s[p.i] {
+		case '+', '>', '~':
+			combinator = p.s[p.i]
+			p.i++
+			p.skipWhitespace()
+		case ',', ')':
+			// These characters can't begin a selector, but they can legally occur after one.
+			return
+		}
+
+		c, err := p.parseSimpleSelectorSequence()
+		if err != nil {
+			return nil, err
+		}
+
+		switch combinator {
+		case ' ':
+			result = descendantSelector(result, c)
+		case '>':
+			result = childSelector(result, c)
+		case '+':
+			result = siblingSelector(result, c, true)
+		case '~':
+			result = siblingSelector(result, c, false)
+		}
+	}
+
+	panic("unreachable")
 }

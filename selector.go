@@ -15,7 +15,7 @@ type Selector func(*html.Node) bool
 // that can be used to match against html.Node objects.
 func Compile(sel string) (Selector, error) {
 	p := &parser{s: sel}
-	compiled, err := p.parseSimpleSelectorSequence() // TODO: more complicated selectors
+	compiled, err := p.parseSelector() // TODO: more complicated selectors
 	if err != nil {
 		return nil, err
 	}
@@ -272,4 +272,71 @@ func emptyElementSelector(n *html.Node) bool {
 	}
 
 	return true
+}
+
+// descendantSelector returns a Selector that matches an element if
+// it matches d and has an ancestor that matches a.
+func descendantSelector(a, d Selector) Selector {
+	return func(n *html.Node) bool {
+		if !d(n) {
+			return false
+		}
+
+		for p := n.Parent; p != nil; p = p.Parent {
+			if a(p) {
+				return true
+			}
+		}
+
+		return false
+	}
+}
+
+// childSelector returns a Selector that matches an element if
+// it matches d and its parent matches a.
+func childSelector(a, d Selector) Selector {
+	return func(n *html.Node) bool {
+		return d(n) && n.Parent != nil && a(n.Parent)
+	}
+}
+
+// siblingSelector returns a Selector that matches an element
+// if it matches s2 and in is preceded by an element that matches s1.
+// If adjacent is true, the sibling must be immediately before the element.
+func siblingSelector(s1, s2 Selector, adjacent bool) Selector {
+	return func(n *html.Node) bool {
+		if !s2(n) {
+			return false
+		}
+
+		p := n.Parent
+		if p == nil {
+			return false
+		}
+		c := p.Child
+		var i int
+		for i = 0; i < len(c); i++ {
+			if c[i] == n {
+				break
+			}
+		}
+
+		if i == len(c) {
+			return false
+		}
+		for j := i - 1; j >= 0; j-- {
+			s := c[j]
+			if s.Type == html.ElementNode {
+				if s1(s) {
+					return true
+				}
+				if adjacent {
+					// Only test the first sibling we find if adjacent is true.
+					return false
+				}
+			}
+		}
+
+		return false
+	}
 }
