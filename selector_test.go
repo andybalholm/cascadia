@@ -336,6 +336,13 @@ var selectorTests = []selectorTest{
 			"<p>",
 		},
 	},
+	{
+		`<p id="1"><p id="2"></p><address></address><p id="3">`,
+		`p +/*This is a comment*/ p`,
+		[]string{
+			`<p id="2">`,
+		},
+	},
 }
 
 func TestSelectors(t *testing.T) {

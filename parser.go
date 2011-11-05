@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html"
 	"strconv"
+	"strings"
 )
 
 // a parser for CSS selectors
@@ -189,8 +190,8 @@ loop:
 	return result, nil
 }
 
-// skipWhitespace consumes whitespace characters. It returns true if there were
-// actually any spaces to skip.
+// skipWhitespace consumes whitespace characters and comments.
+// It returns true if there was actually anything to skip.
 func (p *parser) skipWhitespace() bool {
 	i := p.i
 	for i < len(p.s) {
@@ -198,6 +199,14 @@ func (p *parser) skipWhitespace() bool {
 		case ' ', '\t', '\r', '\n', '\f':
 			i++
 			continue
+		case '/':
+			if strings.HasPrefix(p.s[i:], "/*") {
+				end := strings.Index(p.s[i+len("/*"):], "*/")
+				if end != -1 {
+					i += end + len("/**/")
+					continue
+				}
+			}
 		}
 		break
 	}
