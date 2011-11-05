@@ -634,12 +634,14 @@ func (p *parser) parseSelector() (result Selector, err error) {
 	}
 
 	for {
-		p.skipWhitespace()
+		var combinator byte
+		if p.skipWhitespace() {
+			combinator = ' '
+		}
 		if p.i >= len(p.s) {
 			return
 		}
 
-		var combinator byte = ' '
 		switch p.s[p.i] {
 		case '+', '>', '~':
 			combinator = p.s[p.i]
@@ -647,6 +649,10 @@ func (p *parser) parseSelector() (result Selector, err error) {
 			p.skipWhitespace()
 		case ',', ')':
 			// These characters can't begin a selector, but they can legally occur after one.
+			return
+		}
+
+		if combinator == 0 {
 			return
 		}
 
