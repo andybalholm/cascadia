@@ -32,7 +32,7 @@ func (p *parser) parseEscape() (result string, err error) {
 		for i = start; i < p.i+6 && i < len(p.s) && hexDigit(p.s[i]); i++ {
 			// empty
 		}
-		v, _ := strconv.Btoui64(p.s[start:i], 16)
+		v, _ := strconv.ParseUint(p.s[start:i], 16, 64)
 		if len(p.s) > i {
 			switch p.s[i] {
 			case '\r':
