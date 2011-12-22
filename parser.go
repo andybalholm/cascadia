@@ -32,7 +32,7 @@ func (p *parser) parseEscape() (result string, err error) {
 		for i = start; i < p.i+6 && i < len(p.s) && hexDigit(p.s[i]); i++ {
 			// empty
 		}
-		v, _ := strconv.ParseUint(p.s[start:i], 16, 64)
+		v, _ := strconv.ParseUint(p.s[start:i], 16, 21)
 		if len(p.s) > i {
 			switch p.s[i] {
 			case '\r':
@@ -45,7 +45,7 @@ func (p *parser) parseEscape() (result string, err error) {
 			}
 		}
 		p.i = i
-		return string(int(v)), nil
+		return string(rune(v)), nil
 	}
 
 	// Return the literal character after the backslash.
