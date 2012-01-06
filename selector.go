@@ -27,6 +27,15 @@ func Compile(sel string) (Selector, error) {
 	return compiled, nil
 }
 
+// MustCompile is like Compile, but panics instead of returning an error.
+func MustCompile(sel string) Selector {
+	compiled, err := Compile(sel)
+	if err != nil {
+		panic(err)
+	}
+	return compiled
+}
+
 // MatchAll returns a slice of the nodes that match the selector,
 // from n and its children.
 func (s Selector) MatchAll(n *html.Node) (result []*html.Node) {
