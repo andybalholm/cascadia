@@ -4,7 +4,7 @@ package cascadia
 import (
 	"errors"
 	"fmt"
-	"html"
+	"exp/html"
 	"strconv"
 	"strings"
 )

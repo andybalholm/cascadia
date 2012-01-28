@@ -2,7 +2,7 @@ package cascadia
 
 import (
 	"fmt"
-	"html"
+	"exp/html"
 	"strings"
 )
 
