@@ -1,8 +1,8 @@
 package cascadia
 
 import (
-	"fmt"
 	"exp/html"
+	"fmt"
 	"strings"
 )
 
@@ -48,6 +48,21 @@ func (s Selector) MatchAll(n *html.Node) (result []*html.Node) {
 	}
 
 	return
+}
+
+// Match returns true if the node matches the selector.
+func (s Selector) Match(n *html.Node) bool {
+	return s(n)
+}
+
+// Filter returns the nodes in nodes that match the selector.
+func (s Selector) Filter(nodes []*html.Node) (result []*html.Node) {
+	for _, n := range nodes {
+		if s(n) {
+			result = append(result, n)
+		}
+	}
+	return result
 }
 
 // typeSelector returns a Selector that matches elements with a given tag name.
