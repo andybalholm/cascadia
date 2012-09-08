@@ -43,7 +43,7 @@ func (s Selector) MatchAll(n *html.Node) (result []*html.Node) {
 		result = append(result, n)
 	}
 
-	for _, child := range n.Child {
+	for child := n.FirstChild; child != nil; child = child.NextSibling {
 		result = append(result, s.MatchAll(child)...)
 	}
 
@@ -231,7 +231,7 @@ func nthChildSelector(a, b int, last, ofType bool) Selector {
 
 		i := -1
 		count := 0
-		for _, c := range parent.Child {
+		for c := parent.FirstChild; c != nil; c = c.NextSibling {
 			if (c.Type != html.ElementNode) || (ofType && c.Data != n.Data) {
 				continue
 			}
@@ -276,7 +276,7 @@ func onlyChildSelector(ofType bool) Selector {
 		}
 
 		count := 0
-		for _, c := range parent.Child {
+		for c := parent.FirstChild; c != nil; c = c.NextSibling {
 			if (c.Type != html.ElementNode) || (ofType && c.Data != n.Data) {
 				continue
 			}
@@ -296,7 +296,7 @@ func emptyElementSelector(n *html.Node) bool {
 		return false
 	}
 
-	for _, c := range n.Child {
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
 		switch c.Type {
 		case html.ElementNode, html.TextNode:
 			return false
@@ -341,31 +341,17 @@ func siblingSelector(s1, s2 Selector, adjacent bool) Selector {
 			return false
 		}
 
-		p := n.Parent
-		if p == nil {
-			return false
-		}
-		c := p.Child
-		var i int
-		for i = 0; i < len(c); i++ {
-			if c[i] == n {
-				break
+		if adjacent {
+			if n.PrevSibling == nil {
+				return false
 			}
+			return s1(n.PrevSibling)
 		}
 
-		if i == len(c) {
-			return false
-		}
-		for j := i - 1; j >= 0; j-- {
-			s := c[j]
-			if s.Type == html.ElementNode {
-				if s1(s) {
-					return true
-				}
-				if adjacent {
-					// Only test the first sibling we find if adjacent is true.
-					return false
-				}
+		// Walk backwards looking for element that matches s1
+		for c := n.PrevSibling; c != nil; c = c.PrevSibling {
+			if s1(c) {
+				return true
 			}
 		}
 
