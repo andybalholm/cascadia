@@ -3,8 +3,9 @@ package cascadia
 
 import (
 	"errors"
-	"fmt"
 	"exp/html"
+	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -190,6 +191,40 @@ loop:
 	return result, nil
 }
 
+// parseRegex parses a regular expression; the end is defined by encountering an
+// unmatched closing ')' or ']' which is not consumed
+func (p *parser) parseRegex() (rx *regexp.Regexp, err error) {
+	i := p.i
+	if len(p.s) < i+2 {
+		return nil, errors.New("expected regular expression, found EOF instead")
+	}
+
+	// number of open parens or brackets;
+	// when it becomes negative, finished parsing regex
+	open := 0
+
+loop:
+	for i < len(p.s) {
+		switch p.s[i] {
+		case '(', '[':
+			open++
+		case ')', ']':
+			open--
+			if open < 0 {
+				break loop
+			}
+		}
+		i++
+	}
+
+	if i >= len(p.s) {
+		return nil, errors.New("EOF in regular expression")
+	}
+	rx, err = regexp.Compile(p.s[p.i:i])
+	p.i = i
+	return rx, err
+}
+
 // skipWhitespace consumes whitespace characters and comments.
 // It returns true if there was actually anything to skip.
 func (p *parser) skipWhitespace() bool {
@@ -332,11 +367,16 @@ func (p *parser) parseAttributeSelector() (Selector, error) {
 		return nil, errors.New("unexpected EOF in attribute selector")
 	}
 	var val string
-	switch p.s[p.i] {
-	case '\'', '"':
-		val, err = p.parseString()
-	default:
-		val, err = p.parseIdentifier()
+	var rx *regexp.Regexp
+	if op == "#=" {
+		rx, err = p.parseRegex()
+	} else {
+		switch p.s[p.i] {
+		case '\'', '"':
+			val, err = p.parseString()
+		default:
+			val, err = p.parseIdentifier()
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -364,6 +404,8 @@ func (p *parser) parseAttributeSelector() (Selector, error) {
 		return attributeSuffixSelector(key, val), nil
 	case "*=":
 		return attributeSubstringSelector(key, val), nil
+	case "#=":
+		return attributeRegexSelector(key, rx), nil
 	}
 
 	return nil, fmt.Errorf("attribute operator %q is not supported", op)
@@ -389,7 +431,7 @@ func (p *parser) parsePseudoclassSelector() (Selector, error) {
 	name = toLowerASCII(name)
 
 	switch name {
-	case "not":
+	case "not", "has", "haschild":
 		if !p.consumeParenthesis() {
 			return nil, expectedParenthesis
 		}
@@ -400,7 +442,68 @@ func (p *parser) parsePseudoclassSelector() (Selector, error) {
 		if !p.consumeClosingParenthesis() {
 			return nil, expectedClosingParenthesis
 		}
-		return negatedSelector(sel), nil
+
+		switch name {
+		case "not":
+			return negatedSelector(sel), nil
+		case "has":
+			return hasDescendantSelector(sel), nil
+		case "haschild":
+			return hasChildSelector(sel), nil
+		}
+
+	case "contains", "containsown":
+		if !p.consumeParenthesis() {
+			return nil, expectedParenthesis
+		}
+		var val string
+		switch p.s[p.i] {
+		case '\'', '"':
+			val, err = p.parseString()
+		default:
+			val, err = p.parseIdentifier()
+		}
+		if err != nil {
+			return nil, err
+		}
+		val = strings.ToLower(val)
+		p.skipWhitespace()
+		if p.i >= len(p.s) {
+			return nil, errors.New("unexpected EOF in pseudo selector")
+		}
+		if !p.consumeClosingParenthesis() {
+			return nil, expectedClosingParenthesis
+		}
+
+		switch name {
+		case "contains":
+			return textSubstrSelector(val), nil
+		case "containsown":
+			return ownTextSubstrSelector(val), nil
+		}
+
+	case "matches", "matchesown":
+		if !p.consumeParenthesis() {
+			return nil, expectedParenthesis
+		}
+		rx, err := p.parseRegex()
+		if err != nil {
+			return nil, err
+		}
+		if p.i >= len(p.s) {
+			return nil, errors.New("unexpected EOF in pseudo selector")
+		}
+		if !p.consumeClosingParenthesis() {
+			return nil, expectedClosingParenthesis
+		}
+
+		switch name {
+		case "matches":
+			return textRegexSelector(rx), nil
+		case "matchesown":
+			return ownTextRegexSelector(rx), nil
+		}
+
 	case "nth-child", "nth-last-child", "nth-of-type", "nth-last-of-type":
 		if !p.consumeParenthesis() {
 			return nil, expectedParenthesis
@@ -413,9 +516,10 @@ func (p *parser) parsePseudoclassSelector() (Selector, error) {
 			return nil, expectedClosingParenthesis
 		}
 		return nthChildSelector(a, b,
-			name == "nth-last-child" || name == "nth-last-of-type",
-			name == "nth-of-type" || name == "nth-last-of-type"),
+				name == "nth-last-child" || name == "nth-last-of-type",
+				name == "nth-of-type" || name == "nth-last-of-type"),
 			nil
+
 	case "first-child":
 		return nthChildSelector(0, 1, false, false), nil
 	case "last-child":

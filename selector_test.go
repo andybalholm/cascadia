@@ -343,6 +343,153 @@ var selectorTests = []selectorTest{
 			`<p id="2">`,
 		},
 	},
+	{
+		`<p>Text block that <span>wraps inner text</span> and continues</p>`,
+		`p:contains("that wraps")`,
+		[]string{
+			`<p>`,
+		},
+	},
+	{
+		`<p>Text block that <span>wraps inner text</span> and continues</p>`,
+		`p:containsOwn("that wraps")`,
+		[]string{},
+	},
+	{
+		`<p>Text block that <span>wraps inner text</span> and continues</p>`,
+		`:containsOwn("inner")`,
+		[]string{
+			`<span>`,
+		},
+	},
+	{
+		`<p>Text block that <span>wraps inner text</span> and continues</p>`,
+		`p:containsOwn("block")`,
+		[]string{
+			`<p>`,
+		},
+	},
+	{
+		`<div id="d1"><p id="p1"><span>text content</span></p></div><div id="d2"/>`,
+		`div:has(#p1)`,
+		[]string{
+			`<div id="d1">`,
+		},
+	},
+	{
+		`<div id="d1"><p id="p1"><span>contents 1</span></p></div>
+		<div id="d2"><p>contents <em>2</em></p></div>`,
+		`div:has(:containsOwn("2"))`,
+		[]string{
+			`<div id="d2">`,
+		},
+	},
+	{
+		`<body><div id="d1"><p id="p1"><span>contents 1</span></p></div>
+		<div id="d2"><p id="p2">contents <em>2</em></p></div></body>`,
+		`body :has(:containsOwn("2"))`,
+		[]string{
+			`<div id="d2">`,
+			`<p id="p2">`,
+		},
+	},
+	{
+		`<body><div id="d1"><p id="p1"><span>contents 1</span></p></div>
+		<div id="d2"><p id="p2">contents <em>2</em></p></div></body>`,
+		`body :haschild(:containsOwn("2"))`,
+		[]string{
+			`<p id="p2">`,
+		},
+	},
+	{
+		`<p id="p1">0123456789</p><p id="p2">abcdef</p><p id="p3">0123ABCD</p>`,
+		`p:matches([\d])`,
+		[]string{
+			`<p id="p1">`,
+			`<p id="p3">`,
+		},
+	},
+	{
+		`<p id="p1">0123456789</p><p id="p2">abcdef</p><p id="p3">0123ABCD</p>`,
+		`p:matches([a-z])`,
+		[]string{
+			`<p id="p2">`,
+		},
+	},
+	{
+		`<p id="p1">0123456789</p><p id="p2">abcdef</p><p id="p3">0123ABCD</p>`,
+		`p:matches([a-zA-Z])`,
+		[]string{
+			`<p id="p2">`,
+			`<p id="p3">`,
+		},
+	},
+	{
+		`<p id="p1">0123456789</p><p id="p2">abcdef</p><p id="p3">0123ABCD</p>`,
+		`p:matches([^\d])`,
+		[]string{
+			`<p id="p2">`,
+			`<p id="p3">`,
+		},
+	},
+	{
+		`<p id="p1">0123456789</p><p id="p2">abcdef</p><p id="p3">0123ABCD</p>`,
+		`p:matches(^(0|a))`,
+		[]string{
+			`<p id="p1">`,
+			`<p id="p2">`,
+			`<p id="p3">`,
+		},
+	},
+	{
+		`<p id="p1">0123456789</p><p id="p2">abcdef</p><p id="p3">0123ABCD</p>`,
+		`p:matches(^\d+$)`,
+		[]string{
+			`<p id="p1">`,
+		},
+	},
+	{
+		`<p id="p1">0123456789</p><p id="p2">abcdef</p><p id="p3">0123ABCD</p>`,
+		`p:not(:matches(^\d+$))`,
+		[]string{
+			`<p id="p2">`,
+			`<p id="p3">`,
+		},
+	},
+	{
+		`<div><p id="p1">01234<em>567</em>89</p><div>`,
+		`div :matchesOwn(^\d+$)`,
+		[]string{
+			`<p id="p1">`,
+			`<em>`,
+		},
+	},
+	{
+		`<ul>
+			<li><a id="a1" href="http://www.google.com/finance"/>
+			<li><a id="a2" href="http://finance.yahoo.com/"/>
+			<li><a id="a2" href="http://finance.untrusted.com/"/>
+			<li><a id="a3" href="https://www.google.com/news"/>
+			<li><a id="a4" href="http://news.yahoo.com"/>
+		</ul>`,
+		`[href#=(fina)]:not([href#=(\/\/[^\/]+untrusted)])`,
+		[]string{
+			`<a id="a1" href="http://www.google.com/finance">`,
+			`<a id="a2" href="http://finance.yahoo.com/">`,
+		},
+	},
+	{
+		`<ul>
+			<li><a id="a1" href="http://www.google.com/finance"/>
+			<li><a id="a2" href="http://finance.yahoo.com/"/>
+			<li><a id="a3" href="https://www.google.com/news"/>
+			<li><a id="a4" href="http://news.yahoo.com"/>
+		</ul>`,
+		`[href#=(^https:\/\/[^\/]*\/?news)]`,
+		[]string{
+			`<a id="a3" href="https://www.google.com/news">`,
+		},
+	},
 }
 
 func TestSelectors(t *testing.T) {

@@ -1,8 +1,10 @@
 package cascadia
 
 import (
+	"bytes"
 	"exp/html"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -10,6 +12,28 @@ import (
 
 // A Selector is a function which tells whether a node matches or not.
 type Selector func(*html.Node) bool
+
+// hasChildMatch returns whether n has any child that matches a.
+func hasChildMatch(n *html.Node, a Selector) bool {
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if a(c) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasDescendantMatch performs a depth-first search of n's descendants,
+// testing whether any of them match a. It returns true as soon as a match is
+// found, or false if no match is found.
+func hasDescendantMatch(n *html.Node, a Selector) bool {
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if a(c) || (c.Type == html.ElementNode && hasDescendantMatch(c, a)) {
+			return true
+		}
+	}
+	return false
+}
 
 // Compile parses a selector and returns, if successful, a Selector object
 // that can be used to match against html.Node objects.
@@ -189,6 +213,15 @@ func attributeSubstringSelector(key, val string) Selector {
 		})
 }
 
+// attributeRegexSelector returns a Selector that matches nodes where
+// the attribute named key matches the regular expression rx
+func attributeRegexSelector(key string, rx *regexp.Regexp) Selector {
+	return attributeSelector(key,
+		func(s string) bool {
+			return rx.MatchString(s)
+		})
+}
+
 // intersectionSelector returns a selector that matches nodes that match
 // both a and b.
 func intersectionSelector(a, b Selector) Selector {
@@ -212,6 +245,93 @@ func negatedSelector(a Selector) Selector {
 			return false
 		}
 		return !a(n)
+	}
+}
+
+// writeNodeText writes the text contained in n and its descendants to b.
+func writeNodeText(n *html.Node, b *bytes.Buffer) {
+	switch n.Type {
+	case html.TextNode:
+		b.WriteString(n.Data)
+	case html.ElementNode:
+		for c := n.FirstChild; c != nil; c = c.NextSibling {
+			writeNodeText(c, b)
+		}
+	}
+}
+
+// nodeText returns the text contained in n and its descendants.
+func nodeText(n *html.Node) string {
+	var b bytes.Buffer
+	writeNodeText(n, &b)
+	return b.String()
+}
+
+// nodeOwnText returns the contents of the text nodes that are direct 
+// children of n.
+func nodeOwnText(n *html.Node) string {
+	var b bytes.Buffer
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if c.Type == html.TextNode {
+			b.WriteString(c.Data)
+		}
+	}
+	return b.String()
+}
+
+// textSubstrSelector returns a selector that matches nodes that
+// contain the given text.
+func textSubstrSelector(val string) Selector {
+	return func(n *html.Node) bool {
+		text := strings.ToLower(nodeText(n))
+		return strings.Contains(text, val)
+	}
+}
+
+// ownTextSubstrSelector returns a selector that matches nodes that
+// directly contain the given text
+func ownTextSubstrSelector(val string) Selector {
+	return func(n *html.Node) bool {
+		text := strings.ToLower(nodeOwnText(n))
+		return strings.Contains(text, val)
+	}
+}
+
+// textRegexSelector returns a selector that matches nodes whose text matches 
+// the specified regular expression
+func textRegexSelector(rx *regexp.Regexp) Selector {
+	return func(n *html.Node) bool {
+		return rx.MatchString(nodeText(n))
+	}
+}
+
+// ownTextRegexSelector returns a selector that matches nodes whose text
+// directly matches the specified regular expression
+func ownTextRegexSelector(rx *regexp.Regexp) Selector {
+	return func(n *html.Node) bool {
+		return rx.MatchString(nodeOwnText(n))
+	}
+}
+
+// hasChildSelector returns a selector that matches elements
+// with a child that matches a.
+func hasChildSelector(a Selector) Selector {
+	return func(n *html.Node) bool {
+		if n.Type != html.ElementNode {
+			return false
+		}
+		return hasChildMatch(n, a)
+	}
+}
+
+// hasDescendantSelector returns a selector that matches elements
+// with any descendant that matches a.
+func hasDescendantSelector(a Selector) Selector {
+	return func(n *html.Node) bool {
+		if n.Type != html.ElementNode {
+			return false
+		}
+		return hasDescendantMatch(n, a)
 	}
 }
 
