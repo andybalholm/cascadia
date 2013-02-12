@@ -2,8 +2,8 @@
 package cascadia
 
 import (
+	"code.google.com/p/go.net/html"
 	"errors"
-	"exp/html"
 	"fmt"
 	"regexp"
 	"strconv"

@@ -2,7 +2,7 @@ package cascadia
 
 import (
 	"bytes"
-	"exp/html"
+	"code.google.com/p/go.net/html"
 	"fmt"
 	"regexp"
 	"strings"
@@ -149,7 +149,7 @@ func attributeEqualsSelector(key, val string) Selector {
 		})
 }
 
-// attributeIncludesSelector returns a Selector that matches elements where 
+// attributeIncludesSelector returns a Selector that matches elements where
 // the attribute named key is a whitespace-separated list that includes val.
 func attributeIncludesSelector(key, val string) Selector {
 	return attributeSelector(key,
@@ -267,7 +267,7 @@ func nodeText(n *html.Node) string {
 	return b.String()
 }
 
-// nodeOwnText returns the contents of the text nodes that are direct 
+// nodeOwnText returns the contents of the text nodes that are direct
 // children of n.
 func nodeOwnText(n *html.Node) string {
 	var b bytes.Buffer
@@ -297,7 +297,7 @@ func ownTextSubstrSelector(val string) Selector {
 	}
 }
 
-// textRegexSelector returns a selector that matches nodes whose text matches 
+// textRegexSelector returns a selector that matches nodes whose text matches
 // the specified regular expression
 func textRegexSelector(rx *regexp.Regexp) Selector {
 	return func(n *html.Node) bool {

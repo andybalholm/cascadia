@@ -1,7 +1,7 @@
 package cascadia
 
 import (
-	"exp/html"
+	"code.google.com/p/go.net/html"
 	"strings"
 	"testing"
 )
