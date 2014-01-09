@@ -1,9 +1,9 @@
 package cascadia
 
 import (
-	"testing"
 	"code.google.com/p/go.net/html"
 	"strings"
+	"testing"
 )
 
 func MustParseHTML(doc string) *html.Node {
