@@ -321,7 +321,9 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
-		`<p id="1"><p id="2"></p><address></address><p id="3">`,
+		`<p id="1"></p>
+		 <!--comment-->
+		 <p id="2"></p><address></address><p id="3">`,
 		`p + p`,
 		[]string{
 			`<p id="2">`,

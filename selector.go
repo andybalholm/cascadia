@@ -466,10 +466,13 @@ func siblingSelector(s1, s2 Selector, adjacent bool) Selector {
 		}
 
 		if adjacent {
-			if n.PrevSibling == nil {
-				return false
+			for n = n.PrevSibling; n != nil; n = n.PrevSibling {
+				if n.Type == html.TextNode || n.Type == html.CommentNode {
+					continue
+				}
+				return s1(n)
 			}
-			return s1(n.PrevSibling)
+			return false
 		}
 
 		// Walk backwards looking for element that matches s1
