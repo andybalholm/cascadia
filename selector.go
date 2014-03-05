@@ -83,6 +83,21 @@ func (s Selector) Match(n *html.Node) bool {
 	return s(n)
 }
 
+// MatchFirst returns the first node that matches s, from n and its children.
+func (s Selector) MatchFirst(n *html.Node) *html.Node {
+	if s.Match(n) {
+		return n
+	}
+
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		m := s.MatchFirst(c)
+		if m != nil {
+			return m
+		}
+	}
+	return nil
+}
+
 // Filter returns the nodes in nodes that match the selector.
 func (s Selector) Filter(nodes []*html.Node) (result []*html.Node) {
 	for _, n := range nodes {

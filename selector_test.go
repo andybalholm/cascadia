@@ -520,5 +520,17 @@ func TestSelectors(t *testing.T) {
 				t.Errorf("wanted %s, got %s instead", test.results[i], got)
 			}
 		}
+
+		firstMatch := s.MatchFirst(doc)
+		if len(test.results) == 0 {
+			if firstMatch != nil {
+				t.Errorf("MatchFirst: want nil, got %s", nodeString(firstMatch))
+			}
+		} else {
+			got := nodeString(firstMatch)
+			if got != test.results[0] {
+				t.Errorf("MatchFirst: want %s, got %s", test.results[0], got)
+			}
+		}
 	}
 }
