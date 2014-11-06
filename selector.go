@@ -2,10 +2,11 @@ package cascadia
 
 import (
 	"bytes"
-	"code.google.com/p/go.net/html"
 	"fmt"
 	"regexp"
 	"strings"
+
+	"golang.org/x/net/html"
 )
 
 // the Selector type, and functions for creating them

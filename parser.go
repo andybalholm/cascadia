@@ -2,12 +2,13 @@
 package cascadia
 
 import (
-	"code.google.com/p/go.net/html"
 	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"golang.org/x/net/html"
 )
 
 // a parser for CSS selectors
