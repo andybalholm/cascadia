@@ -520,8 +520,17 @@ func (p *parser) parsePseudoclassSelector() (Selector, error) {
 		if !p.consumeClosingParenthesis() {
 			return nil, expectedClosingParenthesis
 		}
-		if name == "nth-child" && a == 0 {
-			return simpleNthChildSelector(b), nil
+		if a == 0 {
+			switch name {
+			case "nth-child":
+				return simpleNthChildSelector(b, false), nil
+			case "nth-of-type":
+				return simpleNthChildSelector(b, true), nil
+			case "nth-last-child":
+				return simpleNthLastChildSelector(b, false), nil
+			case "nth-last-of-type":
+				return simpleNthLastChildSelector(b, true), nil
+			}
 		}
 		return nthChildSelector(a, b,
 				name == "nth-last-child" || name == "nth-last-of-type",
@@ -529,13 +538,13 @@ func (p *parser) parsePseudoclassSelector() (Selector, error) {
 			nil
 
 	case "first-child":
-		return simpleNthChildSelector(1), nil
+		return simpleNthChildSelector(1, false), nil
 	case "last-child":
-		return nthChildSelector(0, 1, true, false), nil
+		return simpleNthLastChildSelector(1, false), nil
 	case "first-of-type":
-		return nthChildSelector(0, 1, false, true), nil
+		return simpleNthChildSelector(1, true), nil
 	case "last-of-type":
-		return nthChildSelector(0, 1, true, true), nil
+		return simpleNthLastChildSelector(1, true), nil
 	case "only-child":
 		return onlyChildSelector(false), nil
 	case "only-of-type":
