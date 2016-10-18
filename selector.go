@@ -154,6 +154,23 @@ func attributeSelector(key string, f func(string) bool) Selector {
 	}
 }
 
+// attributeSelector returns a Selector that don't match elements
+// where the attribute named key satisifes the function f.
+func attributeNegatedSelector(key string, f func(string) bool) Selector {
+	key = toLowerASCII(key)
+	return func(n *html.Node) bool {
+		if n.Type != html.ElementNode {
+			return false
+		}
+		for _, a := range n.Attr {
+			if a.Key == key && f(a.Val) {
+				return false
+			}
+		}
+		return true
+	}
+}
+
 // attributeExistsSelector returns a Selector that matches elements that have
 // an attribute named key.
 func attributeExistsSelector(key string) Selector {
@@ -164,6 +181,15 @@ func attributeExistsSelector(key string) Selector {
 // the attribute named key has the value val.
 func attributeEqualsSelector(key, val string) Selector {
 	return attributeSelector(key,
+		func(s string) bool {
+			return s == val
+		})
+}
+
+// attributeNotEqualSelector returns a Selector that matches elements where
+// the attribute named key has the value val.
+func attributeNotEqualSelector(key, val string) Selector {
+	return attributeNegatedSelector(key,
 		func(s string) bool {
 			return s == val
 		})

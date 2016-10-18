@@ -111,6 +111,14 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<address><address title="foo"><address title="bar">`,
+		`address[title!="foo"]`,
+		[]string{
+			`<address>`,
+			`<address title="bar">`,
+		},
+	},
+	{
 		`<p title="tot foo bar">`,
 		`[    	title        ~=       foo    ]`,
 		[]string{
@@ -160,6 +168,14 @@ var selectorTests = []selectorTest{
 		`<div class="t3">`,
 		`div:not(.t1)`,
 		[]string{
+			`<div class="t3">`,
+		},
+	},
+	{
+		`<div><div class="t2"><div class="t3">`,
+		`div:not([class="t2"])`,
+		[]string{
+			`<div>`,
 			`<div class="t3">`,
 		},
 	},
