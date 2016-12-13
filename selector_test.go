@@ -161,6 +161,20 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<input type="radio" name="Sex" value="F"/>`,
+		`input[name=Sex][value=F]`,
+		[]string{
+			`<input type="radio" name="Sex" value="F"/>`,
+		},
+	},
+	{
+		`<table border="0" cellpadding="0" cellspacing="0" style="table-layout: fixed; width: 100%; border: 0 dashed; border-color: #FFFFFF"><tr style="height:64px">aaa</tr></table>`,
+		`table[border="0"][cellpadding="0"][cellspacing="0"]`,
+		[]string{
+			`<table border="0" cellpadding="0" cellspacing="0" style="table-layout: fixed; width: 100%; border: 0 dashed; border-color: #FFFFFF"><tbody><tr style="height:64px"></tr></tbody></table>`,
+		},
+	},
+	{
 		`<p class="t1 t2">`,
 		".t1:not(.t2)",
 		[]string{},
