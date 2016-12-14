@@ -14,17 +14,9 @@ type selectorTest struct {
 }
 
 func nodeString(n *html.Node) string {
-	switch n.Type {
-	case html.TextNode:
-		return n.Data
-	case html.ElementNode:
-		return html.Token{
-			Type: html.StartTagToken,
-			Data: n.Data,
-			Attr: n.Attr,
-		}.String()
-	}
-	return ""
+	buf := bytes.NewBufferString("")
+	html.Render(buf, n)
+	return buf.String()
 }
 
 var selectorTests = []selectorTest{
@@ -572,9 +564,7 @@ func TestSelectors(t *testing.T) {
 		}
 
 		for i, m := range matches {
-			buf := bytes.NewBufferString("")
-			html.Render(buf, m)
-			got := buf.String()
+			got := nodeString(m)
 			if got != test.results[i] {
 				t.Errorf("wanted %s, got %s instead", test.results[i], got)
 			}
@@ -586,9 +576,7 @@ func TestSelectors(t *testing.T) {
 				t.Errorf("MatchFirst: want nil, got %s", nodeString(firstMatch))
 			}
 		} else {
-			buf := bytes.NewBufferString("")
-			html.Render(buf, firstMatch)
-			got := buf.String()
+			got := nodeString(firstMatch)
 			if got != test.results[0] {
 				t.Errorf("MatchFirst: want %s, got %s", test.results[0], got)
 			}
