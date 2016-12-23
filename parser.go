@@ -752,7 +752,7 @@ loop:
 
 	if result == nil {
 		result = func(n *html.Node) bool {
-			return true
+			return n.Type == html.ElementNode
 		}
 	}
 

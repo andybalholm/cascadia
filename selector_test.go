@@ -28,10 +28,18 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<!-- comment --><html><head></head><body>text</body></html>`,
+		"*",
+		[]string{
+			"<html><head></head><body>text</body></html>",
+			"<head></head>",
+			"<body>text</body>",
+		},
+	},
+	{
 		`<html><head></head><body></body></html>`,
 		"*",
 		[]string{
-			"<html><head></head><body></body></html>",
 			"<html><head></head><body></body></html>",
 			"<head></head>",
 			"<body></body>",
@@ -559,26 +567,26 @@ func TestSelectors(t *testing.T) {
 
 		matches := s.MatchAll(doc)
 		if len(matches) != len(test.results) {
-			t.Errorf("wanted %d elements, got %d instead", len(test.results), len(matches))
+			t.Errorf("selector %s wanted %d elements, got %d instead", test.selector, len(test.results), len(matches))
 			continue
 		}
 
 		for i, m := range matches {
 			got := nodeString(m)
 			if got != test.results[i] {
-				t.Errorf("wanted %s, got %s instead", test.results[i], got)
+				t.Errorf("selector %s wanted %s, got %s instead", test.selector, test.results[i], got)
 			}
 		}
 
 		firstMatch := s.MatchFirst(doc)
 		if len(test.results) == 0 {
 			if firstMatch != nil {
-				t.Errorf("MatchFirst: want nil, got %s", nodeString(firstMatch))
+				t.Errorf("MatchFirst: selector %s want nil, got %s", test.selector, nodeString(firstMatch))
 			}
 		} else {
 			got := nodeString(firstMatch)
 			if got != test.results[0] {
-				t.Errorf("MatchFirst: want %s, got %s", test.results[0], got)
+				t.Errorf("MatchFirst: selector %s want %s, got %s", test.selector, test.results[0], got)
 			}
 		}
 	}
