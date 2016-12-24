@@ -228,6 +228,9 @@ func attributeDashmatchSelector(key, val string) Selector {
 func attributePrefixSelector(key, val string) Selector {
 	return attributeSelector(key,
 		func(s string) bool {
+			if strings.TrimSpace(s) == "" {
+				return false
+			}
 			return strings.HasPrefix(s, val)
 		})
 }
@@ -237,6 +240,9 @@ func attributePrefixSelector(key, val string) Selector {
 func attributeSuffixSelector(key, val string) Selector {
 	return attributeSelector(key,
 		func(s string) bool {
+			if strings.TrimSpace(s) == "" {
+				return false
+			}
 			return strings.HasSuffix(s, val)
 		})
 }
@@ -246,6 +252,9 @@ func attributeSuffixSelector(key, val string) Selector {
 func attributeSubstringSelector(key, val string) Selector {
 	return attributeSelector(key,
 		func(s string) bool {
+			if strings.TrimSpace(s) == "" {
+				return false
+			}
 			return strings.Contains(s, val)
 		})
 }
