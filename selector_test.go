@@ -153,6 +153,36 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<p class=" ">This text should be green.</p><p>This text should be green.</p>`,
+		`p[class$=" "]`,
+		[]string{},
+	},
+	{
+		`<p class="">This text should be green.</p><p>This text should be green.</p>`,
+		`p[class$=""]`,
+		[]string{},
+	},
+	{
+		`<p class=" ">This text should be green.</p><p>This text should be green.</p>`,
+		`p[class^=" "]`,
+		[]string{},
+	},
+	{
+		`<p class="">This text should be green.</p><p>This text should be green.</p>`,
+		`p[class^=""]`,
+		[]string{},
+	},
+	{
+		`<p class=" ">This text should be green.</p><p>This text should be green.</p>`,
+		`p[class*=" "]`,
+		[]string{},
+	},
+	{
+		`<p class="">This text should be green.</p><p>This text should be green.</p>`,
+		`p[class*=""]`,
+		[]string{},
+	},
+	{
 		`<input type="radio" name="Sex" value="F"/>`,
 		`input[name=Sex][value=F]`,
 		[]string{
