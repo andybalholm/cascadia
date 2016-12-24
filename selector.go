@@ -395,6 +395,10 @@ func nthChildSelector(a, b int, last, ofType bool) Selector {
 			return false
 		}
 
+		if parent.Type == html.DocumentNode {
+			return false
+		}
+
 		i := -1
 		count := 0
 		for c := parent.FirstChild; c != nil; c = c.NextSibling {
@@ -441,6 +445,10 @@ func simpleNthChildSelector(b int, ofType bool) Selector {
 			return false
 		}
 
+		if parent.Type == html.DocumentNode {
+			return false
+		}
+
 		count := 0
 		for c := parent.FirstChild; c != nil; c = c.NextSibling {
 			if c.Type != html.ElementNode || (ofType && c.Data != n.Data) {
@@ -472,6 +480,10 @@ func simpleNthLastChildSelector(b int, ofType bool) Selector {
 			return false
 		}
 
+		if parent.Type == html.DocumentNode {
+			return false
+		}
+
 		count := 0
 		for c := parent.LastChild; c != nil; c = c.PrevSibling {
 			if c.Type != html.ElementNode || (ofType && c.Data != n.Data) {
@@ -499,6 +511,10 @@ func onlyChildSelector(ofType bool) Selector {
 
 		parent := n.Parent
 		if parent == nil {
+			return false
+		}
+
+		if parent.Type == html.DocumentNode {
 			return false
 		}
 
@@ -592,4 +608,15 @@ func siblingSelector(s1, s2 Selector, adjacent bool) Selector {
 
 		return false
 	}
+}
+
+// rootSelector implements :root
+func rootSelector(n *html.Node) bool {
+	if n.Type != html.ElementNode {
+		return false
+	}
+	if n.Parent == nil {
+		return false
+	}
+	return n.Parent.Type == html.DocumentNode
 }

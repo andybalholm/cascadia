@@ -579,6 +579,37 @@ var selectorTests = []selectorTest{
 			`<button>Sign up</button>`,
 		},
 	},
+	{
+		`<html><head></head><body></body></html>`,
+		":root",
+		[]string{
+			"<html><head></head><body></body></html>",
+		},
+	},
+	{
+		`<html><head></head><body></body></html>`,
+		"*:root",
+		[]string{
+			"<html><head></head><body></body></html>",
+		},
+	},
+	{
+		`<html><head></head><body></body></html>`,
+		"*:root:first-child",
+		[]string{},
+	},
+	{
+		`<html><head></head><body></body></html>`,
+		"*:root:nth-child(1)",
+		[]string{},
+	},
+	{
+		`<html><head></head><body><a href="http://www.foo.com"></a></body></html>`,
+		"a:not(:root)",
+		[]string{
+			`<a href="http://www.foo.com"></a>`,
+		},
+	},
 }
 
 func TestSelectors(t *testing.T) {

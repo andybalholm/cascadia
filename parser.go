@@ -555,6 +555,8 @@ func (p *parser) parsePseudoclassSelector() (Selector, error) {
 		return inputSelector, nil
 	case "empty":
 		return emptyElementSelector, nil
+	case "root":
+		return rootSelector, nil
 	}
 
 	return nil, fmt.Errorf("unknown pseudoclass :%s", name)
