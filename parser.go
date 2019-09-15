@@ -280,53 +280,59 @@ func (p *parser) consumeClosingParenthesis() bool {
 }
 
 // parseTypeSelector parses a type selector (one that matches by tag name).
-func (p *parser) parseTypeSelector() (result Selector, err error) {
+func (p *parser) parseTypeSelector() (result oneSelector, err error) {
 	tag, err := p.parseIdentifier()
 	if err != nil {
-		return nil, err
+		return oneSelector{}, err
 	}
 
 	return typeSelector(tag), nil
 }
 
 // parseIDSelector parses a selector that matches by id attribute.
-func (p *parser) parseIDSelector() (Selector, error) {
+func (p *parser) parseIDSelector() (oneSelector, error) {
 	if p.i >= len(p.s) {
-		return nil, fmt.Errorf("expected id selector (#id), found EOF instead")
+		return oneSelector{}, fmt.Errorf("expected id selector (#id), found EOF instead")
 	}
 	if p.s[p.i] != '#' {
-		return nil, fmt.Errorf("expected id selector (#id), found '%c' instead", p.s[p.i])
+		return oneSelector{}, fmt.Errorf("expected id selector (#id), found '%c' instead", p.s[p.i])
 	}
 
 	p.i++
 	id, err := p.parseName()
 	if err != nil {
-		return nil, err
+		return oneSelector{}, err
 	}
 
-	return attributeEqualsSelector("id", id), nil
+	return oneSelector{
+		match:       attributeEqualsSelector("id", id),
+		Specificity: Specificity{1, 0, 0},
+	}, nil
 }
 
 // parseClassSelector parses a selector that matches by class attribute.
-func (p *parser) parseClassSelector() (Selector, error) {
+func (p *parser) parseClassSelector() (oneSelector, error) {
 	if p.i >= len(p.s) {
-		return nil, fmt.Errorf("expected class selector (.class), found EOF instead")
+		return oneSelector{}, fmt.Errorf("expected class selector (.class), found EOF instead")
 	}
 	if p.s[p.i] != '.' {
-		return nil, fmt.Errorf("expected class selector (.class), found '%c' instead", p.s[p.i])
+		return oneSelector{}, fmt.Errorf("expected class selector (.class), found '%c' instead", p.s[p.i])
 	}
 
 	p.i++
 	class, err := p.parseIdentifier()
 	if err != nil {
-		return nil, err
+		return oneSelector{}, err
 	}
 
-	return attributeIncludesSelector("class", class), nil
+	return oneSelector{
+		match:       attributeIncludesSelector("class", class),
+		Specificity: Specificity{0, 1, 0},
+	}, nil
 }
 
-// parseAttributeSelector parses a selector that matches by attribute value.
-func (p *parser) parseAttributeSelector() (Selector, error) {
+// parseAttributeMatcher parses a selector that matches by attribute value.
+func (p *parser) parseAttributeMatcher() (matcher, error) {
 	if p.i >= len(p.s) {
 		return nil, fmt.Errorf("expected attribute selector ([attribute]), found EOF instead")
 	}
@@ -409,9 +415,21 @@ func (p *parser) parseAttributeSelector() (Selector, error) {
 		return attributeSubstringSelector(key, val), nil
 	case "#=":
 		return attributeRegexSelector(key, rx), nil
+	default:
+		return nil, fmt.Errorf("attribute operator %q is not supported", op)
 	}
+}
 
-	return nil, fmt.Errorf("attribute operator %q is not supported", op)
+// parseAttributeSelector parses a selector that matches by attribute value.
+func (p *parser) parseAttributeSelector() (oneSelector, error) {
+	match, err := p.parseAttributeMatcher()
+	if err != nil {
+		return oneSelector{}, err
+	}
+	return oneSelector{
+		match:       match,
+		Specificity: Specificity{0, 1, 0},
+	}, nil
 }
 
 var errExpectedParenthesis = errors.New("expected '(' but didn't find it")
@@ -419,49 +437,52 @@ var errExpectedClosingParenthesis = errors.New("expected ')' but didn't find it"
 var errUnmatchedParenthesis = errors.New("unmatched '('")
 
 // parsePseudoclassSelector parses a pseudoclass selector like :not(p).
-func (p *parser) parsePseudoclassSelector() (Selector, error) {
+func (p *parser) parsePseudoclassSelector() (out oneSelector, err error) {
 	if p.i >= len(p.s) {
-		return nil, fmt.Errorf("expected pseudoclass selector (:pseudoclass), found EOF instead")
+		err = fmt.Errorf("expected pseudoclass selector (:pseudoclass), found EOF instead")
+		return
 	}
 	if p.s[p.i] != ':' {
-		return nil, fmt.Errorf("expected attribute selector (:pseudoclass), found '%c' instead", p.s[p.i])
+		err = fmt.Errorf("expected attribute selector (:pseudoclass), found '%c' instead", p.s[p.i])
+		return
 	}
 
 	p.i++
 	name, err := p.parseIdentifier()
 	if err != nil {
-		return nil, err
+		return
 	}
 	name = toLowerASCII(name)
-
+	out.Specificity = Specificity{0, 1, 0}
 	switch name {
 	case "not", "has", "haschild":
 		if !p.consumeParenthesis() {
-			return nil, errExpectedParenthesis
+			return out, errExpectedParenthesis
 		}
 		sel, parseErr := p.parseSelectorGroup()
 		if parseErr != nil {
-			return nil, parseErr
+			return out, parseErr
 		}
 		if !p.consumeClosingParenthesis() {
-			return nil, errExpectedClosingParenthesis
+			return out, errExpectedClosingParenthesis
 		}
 
+		out.Specificity = sel.maximumSpecificity()
 		switch name {
 		case "not":
-			return negatedSelector(sel), nil
+			out.match = negatedSelector(sel.unionMatch())
 		case "has":
-			return hasDescendantSelector(sel), nil
+			out.match = hasDescendantSelector(sel.unionMatch())
 		case "haschild":
-			return hasChildSelector(sel), nil
+			out.match = hasChildSelector(sel.unionMatch())
 		}
 
 	case "contains", "containsown":
 		if !p.consumeParenthesis() {
-			return nil, errExpectedParenthesis
+			return out, errExpectedParenthesis
 		}
 		if p.i == len(p.s) {
-			return nil, errUnmatchedParenthesis
+			return out, errUnmatchedParenthesis
 		}
 		var val string
 		switch p.s[p.i] {
@@ -471,95 +492,96 @@ func (p *parser) parsePseudoclassSelector() (Selector, error) {
 			val, err = p.parseIdentifier()
 		}
 		if err != nil {
-			return nil, err
+			return out, err
 		}
 		val = strings.ToLower(val)
 		p.skipWhitespace()
 		if p.i >= len(p.s) {
-			return nil, errors.New("unexpected EOF in pseudo selector")
+			return out, errors.New("unexpected EOF in pseudo selector")
 		}
 		if !p.consumeClosingParenthesis() {
-			return nil, errExpectedClosingParenthesis
+			return out, errExpectedClosingParenthesis
 		}
 
 		switch name {
 		case "contains":
-			return textSubstrSelector(val), nil
+			out.match = textSubstrSelector(val)
 		case "containsown":
-			return ownTextSubstrSelector(val), nil
+			out.match = ownTextSubstrSelector(val)
 		}
 
 	case "matches", "matchesown":
 		if !p.consumeParenthesis() {
-			return nil, errExpectedParenthesis
+			return out, errExpectedParenthesis
 		}
 		rx, err := p.parseRegex()
 		if err != nil {
-			return nil, err
+			return out, err
 		}
 		if p.i >= len(p.s) {
-			return nil, errors.New("unexpected EOF in pseudo selector")
+			return out, errors.New("unexpected EOF in pseudo selector")
 		}
 		if !p.consumeClosingParenthesis() {
-			return nil, errExpectedClosingParenthesis
+			return out, errExpectedClosingParenthesis
 		}
 
 		switch name {
 		case "matches":
-			return textRegexSelector(rx), nil
+			out.match = textRegexSelector(rx)
 		case "matchesown":
-			return ownTextRegexSelector(rx), nil
+			out.match = ownTextRegexSelector(rx)
 		}
 
 	case "nth-child", "nth-last-child", "nth-of-type", "nth-last-of-type":
 		if !p.consumeParenthesis() {
-			return nil, errExpectedParenthesis
+			return out, errExpectedParenthesis
 		}
 		a, b, err := p.parseNth()
 		if err != nil {
-			return nil, err
+			return out, err
 		}
 		if !p.consumeClosingParenthesis() {
-			return nil, errExpectedClosingParenthesis
+			return out, errExpectedClosingParenthesis
 		}
 		if a == 0 {
 			switch name {
 			case "nth-child":
-				return simpleNthChildSelector(b, false), nil
+				out.match = simpleNthChildSelector(b, false)
 			case "nth-of-type":
-				return simpleNthChildSelector(b, true), nil
+				out.match = simpleNthChildSelector(b, true)
 			case "nth-last-child":
-				return simpleNthLastChildSelector(b, false), nil
+				out.match = simpleNthLastChildSelector(b, false)
 			case "nth-last-of-type":
-				return simpleNthLastChildSelector(b, true), nil
+				out.match = simpleNthLastChildSelector(b, true)
 			}
+			return out, nil
 		}
-		return nthChildSelector(a, b,
-				name == "nth-last-child" || name == "nth-last-of-type",
-				name == "nth-of-type" || name == "nth-last-of-type"),
-			nil
+		out.match = nthChildSelector(a, b,
+			name == "nth-last-child" || name == "nth-last-of-type",
+			name == "nth-of-type" || name == "nth-last-of-type")
 
 	case "first-child":
-		return simpleNthChildSelector(1, false), nil
+		out.match = simpleNthChildSelector(1, false)
 	case "last-child":
-		return simpleNthLastChildSelector(1, false), nil
+		out.match = simpleNthLastChildSelector(1, false)
 	case "first-of-type":
-		return simpleNthChildSelector(1, true), nil
+		out.match = simpleNthChildSelector(1, true)
 	case "last-of-type":
-		return simpleNthLastChildSelector(1, true), nil
+		out.match = simpleNthLastChildSelector(1, true)
 	case "only-child":
-		return onlyChildSelector(false), nil
+		out.match = onlyChildSelector(false)
 	case "only-of-type":
-		return onlyChildSelector(true), nil
+		out.match = onlyChildSelector(true)
 	case "input":
-		return inputSelector, nil
+		out.match = inputSelector
 	case "empty":
-		return emptyElementSelector, nil
+		out.match = emptyElementSelector
 	case "root":
-		return rootSelector, nil
+		out.match = rootSelector
+	default:
+		return out, fmt.Errorf("unknown pseudoclass :%s", name)
 	}
-
-	return nil, fmt.Errorf("unknown pseudoclass :%s", name)
+	return
 }
 
 // parseInteger parses a  decimal integer.
@@ -705,11 +727,11 @@ invalid:
 
 // parseSimpleSelectorSequence parses a selector sequence that applies to
 // a single element.
-func (p *parser) parseSimpleSelectorSequence() (Selector, error) {
-	var result Selector
+func (p *parser) parseSimpleSelectorSequence() (oneSelector, error) {
+	var result oneSelector
 
 	if p.i >= len(p.s) {
-		return nil, errors.New("expected selector, found EOF instead")
+		return oneSelector{}, errors.New("expected selector, found EOF instead")
 	}
 
 	switch p.s[p.i] {
@@ -721,14 +743,14 @@ func (p *parser) parseSimpleSelectorSequence() (Selector, error) {
 	default:
 		r, err := p.parseTypeSelector()
 		if err != nil {
-			return nil, err
+			return oneSelector{}, err
 		}
 		result = r
 	}
 
 loop:
 	for p.i < len(p.s) {
-		var ns Selector
+		var ns oneSelector
 		var err error
 		switch p.s[p.i] {
 		case '#':
@@ -743,17 +765,19 @@ loop:
 			break loop
 		}
 		if err != nil {
-			return nil, err
+			return oneSelector{}, err
 		}
-		if result == nil {
+
+		if result.match == nil {
 			result = ns
 		} else {
-			result = intersectionSelector(result, ns)
+			result.match = intersectionSelector(result.match, ns.match)
+			result.Specificity = result.Specificity.add(ns.Specificity)
 		}
 	}
 
-	if result == nil {
-		result = func(n *html.Node) bool {
+	if result.match == nil {
+		result.match = func(n *html.Node) bool {
 			return n.Type == html.ElementNode
 		}
 	}
@@ -762,7 +786,7 @@ loop:
 }
 
 // parseSelector parses a selector that may include combinators.
-func (p *parser) parseSelector() (result Selector, err error) {
+func (p *parser) parseSelector() (result oneSelector, err error) {
 	p.skipWhitespace()
 	result, err = p.parseSimpleSelectorSequence()
 	if err != nil {
@@ -770,7 +794,10 @@ func (p *parser) parseSelector() (result Selector, err error) {
 	}
 
 	for {
-		var combinator byte
+		var (
+			combinator byte
+			c          oneSelector
+		)
 		if p.skipWhitespace() {
 			combinator = ' '
 		}
@@ -792,32 +819,31 @@ func (p *parser) parseSelector() (result Selector, err error) {
 			return
 		}
 
-		c, err := p.parseSimpleSelectorSequence()
+		c, err = p.parseSimpleSelectorSequence()
 		if err != nil {
-			return nil, err
+			return
 		}
-
+		result.Specificity = result.Specificity.add(c.Specificity)
 		switch combinator {
 		case ' ':
-			result = descendantSelector(result, c)
+			result.match = descendantSelector(result.match, c.match)
 		case '>':
-			result = childSelector(result, c)
+			result.match = childSelector(result.match, c.match)
 		case '+':
-			result = siblingSelector(result, c, true)
+			result.match = siblingSelector(result.match, c.match, true)
 		case '~':
-			result = siblingSelector(result, c, false)
+			result.match = siblingSelector(result.match, c.match, false)
 		}
 	}
-
-	panic("unreachable")
 }
 
 // parseSelectorGroup parses a group of selectors, separated by commas.
 func (p *parser) parseSelectorGroup() (result Selector, err error) {
-	result, err = p.parseSelector()
+	current, err := p.parseSelector()
 	if err != nil {
 		return
 	}
+	result = append(result, current)
 
 	for p.i < len(p.s) {
 		if p.s[p.i] != ',' {
@@ -828,8 +854,7 @@ func (p *parser) parseSelectorGroup() (result Selector, err error) {
 		if err != nil {
 			return nil, err
 		}
-		result = unionSelector(result, c)
+		result = append(result, c)
 	}
-
 	return
 }
