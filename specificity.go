@@ -1,7 +1,12 @@
 package cascadia
 
-import "golang.org/x/net/html"
+import (
+	"golang.org/x/net/html"
+)
 
+// Specificity is the CSS specificity as defined in
+// https://www.w3.org/TR/selectors/#specificity-rules
+// with the convention Specificity = [A,B,C].
 type Specificity [3]uint8
 
 // returns `true` if s < other (strictly), false otherwise
@@ -9,6 +14,9 @@ func (s Specificity) less(other Specificity) bool {
 	for i := range s {
 		if s[i] < other[i] {
 			return true
+		}
+		if s[i] > other[i] {
+			return false
 		}
 	}
 	return false

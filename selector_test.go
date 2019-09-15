@@ -2,6 +2,8 @@ package cascadia
 
 import (
 	"bytes"
+	"fmt"
+	"log"
 	"strings"
 	"testing"
 
@@ -15,7 +17,9 @@ type selectorTest struct {
 
 func nodeString(n *html.Node) string {
 	buf := bytes.NewBufferString("")
-	html.Render(buf, n)
+	if err := html.Render(buf, n); err != nil {
+		log.Fatal(err)
+	}
 	return buf.String()
 }
 
@@ -547,7 +551,7 @@ var selectorTests = []selectorTest{
 			<li><a id="a1" href="http://www.google.com/finance"/>
 			<li><a id="a2" href="http://finance.yahoo.com/"/>
 			<li><a id="a3" href="https://www.google.com/news"></a>
-			<li><a id="a4" href="http://news.yahoo.com"/>
+			<u><a id="a4" href="http://news.yahoo.com"/>
 		</ul>`,
 		`[href#=(^https:\/\/[^\/]*\/?news)]`,
 		[]string{
@@ -612,18 +616,24 @@ var selectorTests = []selectorTest{
 	},
 }
 
+func setup(selector, testHTML string) (Selector, *html.Node, error) {
+	s, err := Compile(selector)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error compiling %q: %s", selector, err)
+	}
+
+	doc, err := html.Parse(strings.NewReader(testHTML))
+	if err != nil {
+		return nil, nil, fmt.Errorf("error parsing %q: %s", testHTML, err)
+	}
+	return s, doc, nil
+}
+
 func TestSelectors(t *testing.T) {
 	for _, test := range selectorTests {
-		s, err := Compile(test.selector)
+		s, doc, err := setup(test.selector, test.HTML)
 		if err != nil {
-			t.Errorf("error compiling %q: %s", test.selector, err)
-			continue
-		}
-
-		doc, err := html.Parse(strings.NewReader(test.HTML))
-		if err != nil {
-			t.Errorf("error parsing %q: %s", test.HTML, err)
-			continue
+			t.Error(err)
 		}
 
 		matches := s.MatchAll(doc)
@@ -649,6 +659,89 @@ func TestSelectors(t *testing.T) {
 			if got != test.results[0] {
 				t.Errorf("MatchFirst: selector %s want %s, got %s", test.selector, test.results[0], got)
 			}
+		}
+	}
+}
+
+type ts struct {
+	HTML, selector string
+	specificity    Specificity
+}
+
+// html, css selector, correct specificity
+var testsSpecificity = []ts{
+	{
+		HTML:        `<html><body><div><div><a href="http://www.foo.com"></a></div></div></body></html>`,
+		selector:    ":not(em, strong#foo)",
+		specificity: Specificity{1, 0, 1},
+	},
+	{
+		HTML:        `<html><body><div><div><a href="http://www.foo.com"></a></div></div></body></html>`,
+		selector:    "*",
+		specificity: Specificity{0, 0, 0},
+	},
+	{
+		HTML:        `<html><body><div><div><ul></ul></div></div></body></html>`,
+		selector:    "ul",
+		specificity: Specificity{0, 0, 1},
+	},
+	{
+		HTML:        `<html><body><div><ul><li></li></ul></div></body></html>`,
+		selector:    "ul li",
+		specificity: Specificity{0, 0, 2},
+	},
+	{
+		HTML:        `<html><body><div><ul><ol></ol><li></li></ul></div></body></html>`,
+		selector:    "ul ol+li",
+		specificity: Specificity{0, 0, 3},
+	},
+	{
+		HTML:        `<html><body><div><ul><h1></h1><li rel="up"></li></ul></div></body></html>`,
+		selector:    "H1 + *[REL=up] ",
+		specificity: Specificity{0, 1, 1},
+	},
+	{
+		HTML:        `<html><body><ul><ol><li class="red"></li></ol></ul></body></html>`,
+		selector:    "UL OL LI.red",
+		specificity: Specificity{0, 1, 3},
+	},
+	{
+		HTML:        `<html><body><ul><ol><li class="red level"></li></ol></ul></body></html>`,
+		selector:    "LI.red.level",
+		specificity: Specificity{0, 2, 1},
+	},
+	{
+		HTML:        `<html><body><ul><ol><li id="x34y"></li></ol></ul></body></html>`,
+		selector:    "#x34y",
+		specificity: Specificity{1, 0, 0},
+	},
+	{
+		HTML:        `<html><body><ul><ol><li id="s12"></li></ol></ul></body></html>`,
+		selector:    "#s12:not(FOO)",
+		specificity: Specificity{1, 0, 1},
+	},
+	{
+		HTML:        `<html><body><ul><ol><li id="s12" class="red level"></li></ol></ul></body></html>`,
+		selector:    "#s12:not(FOO), LI.red.level",
+		specificity: Specificity{1, 0, 1},
+	},
+}
+
+func TestSpecificity(t *testing.T) {
+	for _, test := range testsSpecificity {
+		s, doc, err := setup(test.selector, test.HTML)
+		if err != nil {
+			t.Error(err)
+		}
+		body := doc.FirstChild.LastChild
+		testNode := body.FirstChild.FirstChild.LastChild
+		ok, spec := s.MatchWithSpecificity(testNode)
+		if !ok {
+			t.Errorf("%s didn't match (html tree : \n %s) \n", test.selector, nodeString(doc))
+			continue
+		}
+		if spec != test.specificity {
+			t.Errorf("Specificity %s : expected %v got %v", test.selector, test.specificity, spec)
 		}
 	}
 }
