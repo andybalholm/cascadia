@@ -27,6 +27,17 @@ type oneSelector struct {
 // A Selector is a function which tells whether a node matches or not.
 type Selector []oneSelector
 
+// CheckPseudoElements returns a non nil error if one non zero pseudo element is
+// not in `allowed`
+func (s Selector) CheckPseudoElements(allowed map[string]struct{}) error {
+	for _, sel := range s {
+		if _, ok := allowed[sel.PseudoElement]; sel.PseudoElement != "" && !ok {
+			return fmt.Errorf("unknown pseudo-element : %s", sel.PseudoElement)
+		}
+	}
+	return nil
+}
+
 // unionSelector returns a selector that matches elements that match
 // one on the single selector
 func (s Selector) unionMatch() matcher {
