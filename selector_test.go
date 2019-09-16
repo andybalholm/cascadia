@@ -674,7 +674,7 @@ func mustEqual(d1, d2 []MatchDetail) error {
 	}
 	for i, m := range d1 {
 		if d2[i] != m {
-			return fmt.Errorf("wrong match at index %d : expected %s, got %s", i, m, d2[i])
+			return fmt.Errorf("wrong match at index %d : expected %v, got %v", i, m, d2[i])
 		}
 	}
 	return nil
@@ -750,6 +750,11 @@ var testsSpecificity = []ts{
 		HTML:     `<html><body><ul><ol><li id="s12" class="red level"></li></ol></ul></body></html>`,
 		selector: "#s12:first-line",
 		details:  []MatchDetail{{Specificity: Specificity{1, 0, 1}, PseudoElement: "first-line"}},
+	},
+	{
+		HTML:     `<html><body><ul><ol><li id="s12" class="red level"></li></ol></ul></body></html>`,
+		selector: "#s12:not(FOO)::after, LI.red.level:before",
+		details:  []MatchDetail{{Specificity: Specificity{1, 0, 2}, PseudoElement: "after"}, {Specificity: Specificity{0, 2, 2}, PseudoElement: "before"}},
 	},
 }
 
