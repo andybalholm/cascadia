@@ -766,8 +766,8 @@ func TestSpecificity(t *testing.T) {
 		}
 		body := doc.FirstChild.LastChild
 		testNode := body.FirstChild.FirstChild.LastChild
-		ok, det := s.MatchDetails(testNode)
-		if !ok {
+		det := s.MatchDetails(testNode)
+		if len(det) == 0 {
 			t.Errorf("%s didn't match (html tree : \n %s) \n", test.selector, nodeString(doc))
 			continue
 		}

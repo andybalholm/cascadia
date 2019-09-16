@@ -44,14 +44,14 @@ type MatchDetail struct {
 	Specificity   Specificity
 }
 
-// MatchDetails return `true` if `element` matches `s`.
-// In this case, the list of specificity and optionnal pseudoElement matching is returned.
-func (s Selector) MatchDetails(element *html.Node) (bool, []MatchDetail) {
+// MatchDetails return the list of specificity and optionnal pseudoElement of
+// matching selectors.
+func (s Selector) MatchDetails(element *html.Node) []MatchDetail {
 	var out []MatchDetail
 	for _, sel := range s {
 		if sel.match(element) {
 			out = append(out, MatchDetail{PseudoElement: sel.PseudoElement, Specificity: sel.Specificity})
 		}
 	}
-	return len(out) > 0, out
+	return out
 }
