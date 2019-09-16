@@ -16,9 +16,12 @@ type matcher = func(*html.Node) bool
 // Represents one selector in a comma-separated group of selectors.
 // We keep this representation to compute the specificity of the matching
 // nodes.
+// The optionnal field "PseudoElement" holds CSS pseudo-elements :
+// https://www.w3.org/TR/selectors/#pseudo-elements
 type oneSelector struct {
-	match       matcher
-	Specificity Specificity
+	match         matcher
+	Specificity   Specificity
+	PseudoElement string
 }
 
 // A Selector is a function which tells whether a node matches or not.

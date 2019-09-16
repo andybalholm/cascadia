@@ -11,6 +11,23 @@ import (
 	"golang.org/x/net/html"
 )
 
+var (
+	h                       struct{}
+	SupportedPseudoElements = map[string]struct{}{
+		"after":          h,
+		"backdrop":       h,
+		"before":         h,
+		"cue":            h,
+		"first-letter":   h,
+		"first-line":     h,
+		"grammar-error":  h,
+		"marker":         h,
+		"placeholder":    h,
+		"selectio":       h,
+		"spelling-error": h,
+	}
+)
+
 // a parser for CSS selectors
 type parser struct {
 	s string // the source text
@@ -448,6 +465,10 @@ func (p *parser) parsePseudoclassSelector() (out oneSelector, err error) {
 	}
 
 	p.i++
+	if p.s[p.i] == ':' { // we found a pseudo-element
+		p.i++
+	}
+
 	name, err := p.parseIdentifier()
 	if err != nil {
 		return
@@ -578,8 +599,11 @@ func (p *parser) parsePseudoclassSelector() (out oneSelector, err error) {
 		out.match = emptyElementSelector
 	case "root":
 		out.match = rootSelector
+	case "after", "backdrop", "before", "cue", "first-letter", "first-line", "grammar-error", "marker", "placeholder", "selection", "spelling-error":
+		out.PseudoElement = name
+		out.Specificity = Specificity{0, 0, 1}
 	default:
-		return out, fmt.Errorf("unknown pseudoclass :%s", name)
+		return out, fmt.Errorf("unknown pseudoclass or pseudoelement :%s", name)
 	}
 	return
 }
@@ -769,9 +793,15 @@ loop:
 		}
 
 		if result.match == nil {
+			if ns.match == nil && ns.PseudoElement != "" { // we found a pseudo-element
+				return oneSelector{}, fmt.Errorf("stand-alone %s pseudo-element not allowed", ns.PseudoElement)
+			}
 			result = ns
 		} else {
-			result.match = intersectionSelector(result.match, ns.match)
+			if ns.PseudoElement == "" { // not a pseudo-element
+				result.match = intersectionSelector(result.match, ns.match)
+			}
+			result.PseudoElement = ns.PseudoElement
 			result.Specificity = result.Specificity.add(ns.Specificity)
 		}
 	}

@@ -665,65 +665,91 @@ func TestSelectors(t *testing.T) {
 
 type ts struct {
 	HTML, selector string
-	specificity    Specificity
+	details        []MatchDetail
+}
+
+func mustEqual(d1, d2 []MatchDetail) error {
+	if len(d1) != len(d2) {
+		return fmt.Errorf("invalid number of matching selectors : expected %d, got %d", len(d1), len(d2))
+	}
+	for i, m := range d1 {
+		if d2[i] != m {
+			return fmt.Errorf("wrong match at index %d : expected %s, got %s", i, m, d2[i])
+		}
+	}
+	return nil
+}
+
+func monoSpec(s Specificity) []MatchDetail {
+	return []MatchDetail{{Specificity: s}}
 }
 
 // html, css selector, correct specificity
 var testsSpecificity = []ts{
 	{
-		HTML:        `<html><body><div><div><a href="http://www.foo.com"></a></div></div></body></html>`,
-		selector:    ":not(em, strong#foo)",
-		specificity: Specificity{1, 0, 1},
+		HTML:     `<html><body><div><div><a href="http://www.foo.com"></a></div></div></body></html>`,
+		selector: ":not(em, strong#foo)",
+		details:  monoSpec(Specificity{1, 0, 1}),
 	},
 	{
-		HTML:        `<html><body><div><div><a href="http://www.foo.com"></a></div></div></body></html>`,
-		selector:    "*",
-		specificity: Specificity{0, 0, 0},
+		HTML:     `<html><body><div><div><a href="http://www.foo.com"></a></div></div></body></html>`,
+		selector: "*",
+		details:  monoSpec(Specificity{0, 0, 0}),
 	},
 	{
-		HTML:        `<html><body><div><div><ul></ul></div></div></body></html>`,
-		selector:    "ul",
-		specificity: Specificity{0, 0, 1},
+		HTML:     `<html><body><div><div><ul></ul></div></div></body></html>`,
+		selector: "ul",
+		details:  monoSpec(Specificity{0, 0, 1}),
 	},
 	{
-		HTML:        `<html><body><div><ul><li></li></ul></div></body></html>`,
-		selector:    "ul li",
-		specificity: Specificity{0, 0, 2},
+		HTML:     `<html><body><div><ul><li></li></ul></div></body></html>`,
+		selector: "ul li",
+		details:  monoSpec(Specificity{0, 0, 2}),
 	},
 	{
-		HTML:        `<html><body><div><ul><ol></ol><li></li></ul></div></body></html>`,
-		selector:    "ul ol+li",
-		specificity: Specificity{0, 0, 3},
+		HTML:     `<html><body><div><ul><ol></ol><li></li></ul></div></body></html>`,
+		selector: "ul ol+li",
+		details:  monoSpec(Specificity{0, 0, 3}),
 	},
 	{
-		HTML:        `<html><body><div><ul><h1></h1><li rel="up"></li></ul></div></body></html>`,
-		selector:    "H1 + *[REL=up] ",
-		specificity: Specificity{0, 1, 1},
+		HTML:     `<html><body><div><ul><h1></h1><li rel="up"></li></ul></div></body></html>`,
+		selector: "H1 + *[REL=up] ",
+		details:  monoSpec(Specificity{0, 1, 1}),
 	},
 	{
-		HTML:        `<html><body><ul><ol><li class="red"></li></ol></ul></body></html>`,
-		selector:    "UL OL LI.red",
-		specificity: Specificity{0, 1, 3},
+		HTML:     `<html><body><ul><ol><li class="red"></li></ol></ul></body></html>`,
+		selector: "UL OL LI.red",
+		details:  monoSpec(Specificity{0, 1, 3}),
 	},
 	{
-		HTML:        `<html><body><ul><ol><li class="red level"></li></ol></ul></body></html>`,
-		selector:    "LI.red.level",
-		specificity: Specificity{0, 2, 1},
+		HTML:     `<html><body><ul><ol><li class="red level"></li></ol></ul></body></html>`,
+		selector: "LI.red.level",
+		details:  monoSpec(Specificity{0, 2, 1}),
 	},
 	{
-		HTML:        `<html><body><ul><ol><li id="x34y"></li></ol></ul></body></html>`,
-		selector:    "#x34y",
-		specificity: Specificity{1, 0, 0},
+		HTML:     `<html><body><ul><ol><li id="x34y"></li></ol></ul></body></html>`,
+		selector: "#x34y",
+		details:  monoSpec(Specificity{1, 0, 0}),
 	},
 	{
-		HTML:        `<html><body><ul><ol><li id="s12"></li></ol></ul></body></html>`,
-		selector:    "#s12:not(FOO)",
-		specificity: Specificity{1, 0, 1},
+		HTML:     `<html><body><ul><ol><li id="s12"></li></ol></ul></body></html>`,
+		selector: "#s12:not(FOO)",
+		details:  monoSpec(Specificity{1, 0, 1}),
 	},
 	{
-		HTML:        `<html><body><ul><ol><li id="s12" class="red level"></li></ol></ul></body></html>`,
-		selector:    "#s12:not(FOO), LI.red.level",
-		specificity: Specificity{1, 0, 1},
+		HTML:     `<html><body><ul><ol><li id="s12" class="red level"></li></ol></ul></body></html>`,
+		selector: "#s12:not(FOO), LI.red.level",
+		details:  []MatchDetail{{Specificity: Specificity{1, 0, 1}}, {Specificity: Specificity{0, 2, 1}}},
+	},
+	{
+		HTML:     `<html><body><ul><ol><li id="s12" class="red level"></li></ol></ul></body></html>`,
+		selector: "#s12::first-line",
+		details:  []MatchDetail{{Specificity: Specificity{1, 0, 1}, PseudoElement: "first-line"}},
+	},
+	{
+		HTML:     `<html><body><ul><ol><li id="s12" class="red level"></li></ol></ul></body></html>`,
+		selector: "#s12:first-line",
+		details:  []MatchDetail{{Specificity: Specificity{1, 0, 1}, PseudoElement: "first-line"}},
 	},
 }
 
@@ -731,17 +757,17 @@ func TestSpecificity(t *testing.T) {
 	for _, test := range testsSpecificity {
 		s, doc, err := setup(test.selector, test.HTML)
 		if err != nil {
-			t.Error(err)
+			t.Fatal(err)
 		}
 		body := doc.FirstChild.LastChild
 		testNode := body.FirstChild.FirstChild.LastChild
-		ok, spec := s.MatchWithSpecificity(testNode)
+		ok, det := s.MatchDetails(testNode)
 		if !ok {
 			t.Errorf("%s didn't match (html tree : \n %s) \n", test.selector, nodeString(doc))
 			continue
 		}
-		if spec != test.specificity {
-			t.Errorf("Specificity %s : expected %v got %v", test.selector, test.specificity, spec)
+		if err = mustEqual(test.details, det); err != nil {
+			t.Error(err)
 		}
 	}
 }
