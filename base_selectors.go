@@ -39,7 +39,7 @@ func (c compoundSelector) PseudoElement() string {
 	return c.pseudoElement
 }
 
-type CombinedSelector struct {
+type combinedSelector struct {
 	first      Matcher
 	combinator byte
 	second     Matcher
@@ -47,7 +47,7 @@ type CombinedSelector struct {
 	pseudoElement string
 }
 
-func (c CombinedSelector) PseudoElement() string {
+func (c combinedSelector) PseudoElement() string {
 	return c.pseudoElement
 }
 
@@ -94,7 +94,7 @@ func (t compoundSelector) Match(n *html.Node) bool {
 	return true
 }
 
-func (t CombinedSelector) Match(n *html.Node) bool {
+func (t combinedSelector) Match(n *html.Node) bool {
 	if t.first == nil {
 		return false // maybe we should panic
 	}

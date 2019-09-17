@@ -833,7 +833,7 @@ func (p *parser) parseSelector() (result MatcherWithPseudo, err error) {
 		if err != nil {
 			return
 		}
-		result = CombinedSelector{first: result, combinator: combinator, second: c, pseudoElement: c.pseudoElement}
+		result = combinedSelector{first: result, combinator: combinator, second: c, pseudoElement: c.pseudoElement}
 	}
 }
 

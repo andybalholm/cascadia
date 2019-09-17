@@ -72,7 +72,7 @@ func (c compoundSelector) Specificity() Specificity {
 	return out
 }
 
-func (c CombinedSelector) Specificity() Specificity {
+func (c combinedSelector) Specificity() Specificity {
 	s := c.first.Specificity()
 	if c.second != nil {
 		s = s.add(c.second.Specificity())
