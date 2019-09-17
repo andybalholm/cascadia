@@ -32,11 +32,52 @@ func (s Specificity) add(other Specificity) Specificity {
 func (s Selector) maximumSpecificity() Specificity {
 	var out Specificity
 	for _, sel := range s {
-		if out.Less(sel.Specificity) {
-			out = sel.Specificity
+		sp := sel.Specificity()
+		if out.Less(sp) {
+			out = sp
 		}
 	}
 	return out
+}
+
+// basic specificity
+func (c tagSelector) Specificity() Specificity {
+	return Specificity{0, 0, 1}
+}
+
+func (c classSelector) Specificity() Specificity {
+	return Specificity{0, 1, 0}
+}
+
+func (c idSelector) Specificity() Specificity {
+	return Specificity{1, 0, 0}
+}
+
+func (c attrSelector) Specificity() Specificity {
+	return Specificity{0, 1, 0}
+}
+
+func (c pseudoClassSelector) Specificity() Specificity {
+	return c.specificity
+}
+
+func (c compoundSelector) Specificity() Specificity {
+	var out Specificity
+	for _, sel := range c.selectors {
+		out = out.add(sel.Specificity())
+	}
+	if c.pseudoElement != "" {
+		out = out.add(Specificity{0, 0, 1})
+	}
+	return out
+}
+
+func (c CombinedSelector) Specificity() Specificity {
+	s := c.first.Specificity()
+	if c.second != nil {
+		s = s.add(c.second.Specificity())
+	}
+	return s
 }
 
 type MatchDetail struct {
@@ -49,8 +90,8 @@ type MatchDetail struct {
 func (s Selector) MatchDetails(element *html.Node) []MatchDetail {
 	var out []MatchDetail
 	for _, sel := range s {
-		if sel.match(element) {
-			out = append(out, MatchDetail{PseudoElement: sel.PseudoElement, Specificity: sel.Specificity})
+		if sel.Match(element) {
+			out = append(out, MatchDetail{PseudoElement: sel.PseudoElement(), Specificity: sel.Specificity()})
 		}
 	}
 	return out

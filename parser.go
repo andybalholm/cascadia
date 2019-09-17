@@ -7,8 +7,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-
-	"golang.org/x/net/html"
 )
 
 var (
@@ -297,55 +295,48 @@ func (p *parser) consumeClosingParenthesis() bool {
 }
 
 // parseTypeSelector parses a type selector (one that matches by tag name).
-func (p *parser) parseTypeSelector() (result oneSelector, err error) {
+func (p *parser) parseTypeSelector() (result tagSelector, err error) {
 	tag, err := p.parseIdentifier()
 	if err != nil {
-		return oneSelector{}, err
+		return
 	}
-
-	return typeSelector(tag), nil
+	return tagSelector{tag: toLowerASCII(tag)}, nil
 }
 
 // parseIDSelector parses a selector that matches by id attribute.
-func (p *parser) parseIDSelector() (oneSelector, error) {
+func (p *parser) parseIDSelector() (idSelector, error) {
 	if p.i >= len(p.s) {
-		return oneSelector{}, fmt.Errorf("expected id selector (#id), found EOF instead")
+		return idSelector{}, fmt.Errorf("expected id selector (#id), found EOF instead")
 	}
 	if p.s[p.i] != '#' {
-		return oneSelector{}, fmt.Errorf("expected id selector (#id), found '%c' instead", p.s[p.i])
+		return idSelector{}, fmt.Errorf("expected id selector (#id), found '%c' instead", p.s[p.i])
 	}
 
 	p.i++
 	id, err := p.parseName()
 	if err != nil {
-		return oneSelector{}, err
+		return idSelector{}, err
 	}
 
-	return oneSelector{
-		match:       attributeEqualsSelector("id", id),
-		Specificity: Specificity{1, 0, 0},
-	}, nil
+	return idSelector{id: id}, nil
 }
 
 // parseClassSelector parses a selector that matches by class attribute.
-func (p *parser) parseClassSelector() (oneSelector, error) {
+func (p *parser) parseClassSelector() (classSelector, error) {
 	if p.i >= len(p.s) {
-		return oneSelector{}, fmt.Errorf("expected class selector (.class), found EOF instead")
+		return classSelector{}, fmt.Errorf("expected class selector (.class), found EOF instead")
 	}
 	if p.s[p.i] != '.' {
-		return oneSelector{}, fmt.Errorf("expected class selector (.class), found '%c' instead", p.s[p.i])
+		return classSelector{}, fmt.Errorf("expected class selector (.class), found '%c' instead", p.s[p.i])
 	}
 
 	p.i++
 	class, err := p.parseIdentifier()
 	if err != nil {
-		return oneSelector{}, err
+		return classSelector{}, err
 	}
 
-	return oneSelector{
-		match:       attributeIncludesSelector("class", class),
-		Specificity: Specificity{0, 1, 0},
-	}, nil
+	return classSelector{class: class}, nil
 }
 
 // parseAttributeMatcher parses a selector that matches by attribute value.
@@ -438,23 +429,20 @@ func (p *parser) parseAttributeMatcher() (matcher, error) {
 }
 
 // parseAttributeSelector parses a selector that matches by attribute value.
-func (p *parser) parseAttributeSelector() (oneSelector, error) {
+func (p *parser) parseAttributeSelector() (attrSelector, error) {
 	match, err := p.parseAttributeMatcher()
 	if err != nil {
-		return oneSelector{}, err
+		return attrSelector{}, err
 	}
-	return oneSelector{
-		match:       match,
-		Specificity: Specificity{0, 1, 0},
-	}, nil
+	return attrSelector{match: match}, nil
 }
 
 var errExpectedParenthesis = errors.New("expected '(' but didn't find it")
 var errExpectedClosingParenthesis = errors.New("expected ')' but didn't find it")
 var errUnmatchedParenthesis = errors.New("unmatched '('")
 
-// parsePseudoclassSelector parses a pseudoclass selector like :not(p).
-func (p *parser) parsePseudoclassSelector() (out oneSelector, err error) {
+// parsePseudoclassSelector parses a pseudoclass selector like :not(p) or a non zero pseudo-element.
+func (p *parser) parsePseudoclassSelector() (out pseudoClassSelector, pseudoElement string, err error) {
 	if p.i >= len(p.s) {
 		err = fmt.Errorf("expected pseudoclass selector (:pseudoclass), found EOF instead")
 		return
@@ -474,36 +462,37 @@ func (p *parser) parsePseudoclassSelector() (out oneSelector, err error) {
 		return
 	}
 	name = toLowerASCII(name)
-	out.Specificity = Specificity{0, 1, 0}
+	out.specificity = Specificity{0, 1, 0}
 	switch name {
 	case "not", "has", "haschild":
 		if !p.consumeParenthesis() {
-			return out, errExpectedParenthesis
+			return out, "", errExpectedParenthesis
 		}
 		sel, parseErr := p.parseSelectorGroup()
 		if parseErr != nil {
-			return out, parseErr
+			return out, "", parseErr
 		}
 		if !p.consumeClosingParenthesis() {
-			return out, errExpectedClosingParenthesis
+			return out, "", errExpectedClosingParenthesis
 		}
 
-		out.Specificity = sel.maximumSpecificity()
+		// see https://www.w3.org/TR/selectors/#specificity-rules
+		out.specificity = sel.maximumSpecificity()
 		switch name {
 		case "not":
-			out.match = negatedSelector(sel.unionMatch())
+			out.match = negatedSelector(sel.Match)
 		case "has":
-			out.match = hasDescendantSelector(sel.unionMatch())
+			out.match = hasDescendantSelector(sel.Match)
 		case "haschild":
-			out.match = hasChildSelector(sel.unionMatch())
+			out.match = hasChildSelector(sel.Match)
 		}
 
 	case "contains", "containsown":
 		if !p.consumeParenthesis() {
-			return out, errExpectedParenthesis
+			return out, "", errExpectedParenthesis
 		}
 		if p.i == len(p.s) {
-			return out, errUnmatchedParenthesis
+			return out, "", errUnmatchedParenthesis
 		}
 		var val string
 		switch p.s[p.i] {
@@ -513,15 +502,15 @@ func (p *parser) parsePseudoclassSelector() (out oneSelector, err error) {
 			val, err = p.parseIdentifier()
 		}
 		if err != nil {
-			return out, err
+			return out, "", err
 		}
 		val = strings.ToLower(val)
 		p.skipWhitespace()
 		if p.i >= len(p.s) {
-			return out, errors.New("unexpected EOF in pseudo selector")
+			return out, "", errors.New("unexpected EOF in pseudo selector")
 		}
 		if !p.consumeClosingParenthesis() {
-			return out, errExpectedClosingParenthesis
+			return out, "", errExpectedClosingParenthesis
 		}
 
 		switch name {
@@ -533,17 +522,17 @@ func (p *parser) parsePseudoclassSelector() (out oneSelector, err error) {
 
 	case "matches", "matchesown":
 		if !p.consumeParenthesis() {
-			return out, errExpectedParenthesis
+			return out, "", errExpectedParenthesis
 		}
 		rx, err := p.parseRegex()
 		if err != nil {
-			return out, err
+			return out, "", err
 		}
 		if p.i >= len(p.s) {
-			return out, errors.New("unexpected EOF in pseudo selector")
+			return out, "", errors.New("unexpected EOF in pseudo selector")
 		}
 		if !p.consumeClosingParenthesis() {
-			return out, errExpectedClosingParenthesis
+			return out, "", errExpectedClosingParenthesis
 		}
 
 		switch name {
@@ -555,14 +544,14 @@ func (p *parser) parsePseudoclassSelector() (out oneSelector, err error) {
 
 	case "nth-child", "nth-last-child", "nth-of-type", "nth-last-of-type":
 		if !p.consumeParenthesis() {
-			return out, errExpectedParenthesis
+			return out, "", errExpectedParenthesis
 		}
 		a, b, err := p.parseNth()
 		if err != nil {
-			return out, err
+			return out, "", err
 		}
 		if !p.consumeClosingParenthesis() {
-			return out, errExpectedClosingParenthesis
+			return out, "", errExpectedClosingParenthesis
 		}
 		if a == 0 {
 			switch name {
@@ -575,7 +564,7 @@ func (p *parser) parsePseudoclassSelector() (out oneSelector, err error) {
 			case "nth-last-of-type":
 				out.match = simpleNthLastChildSelector(b, true)
 			}
-			return out, nil
+			return out, "", nil
 		}
 		out.match = nthChildSelector(a, b,
 			name == "nth-last-child" || name == "nth-last-of-type",
@@ -600,10 +589,9 @@ func (p *parser) parsePseudoclassSelector() (out oneSelector, err error) {
 	case "root":
 		out.match = rootSelector
 	case "after", "backdrop", "before", "cue", "first-letter", "first-line", "grammar-error", "marker", "placeholder", "selection", "spelling-error":
-		out.PseudoElement = name
-		out.Specificity = Specificity{0, 0, 1}
+		return out, name, nil
 	default:
-		return out, fmt.Errorf("unknown pseudoclass or pseudoelement :%s", name)
+		return out, "", fmt.Errorf("unknown pseudoclass or pseudoelement :%s", name)
 	}
 	return
 }
@@ -751,11 +739,11 @@ invalid:
 
 // parseSimpleSelectorSequence parses a selector sequence that applies to
 // a single element.
-func (p *parser) parseSimpleSelectorSequence() (oneSelector, error) {
-	var result oneSelector
+func (p *parser) parseSimpleSelectorSequence() (compoundSelector, error) {
+	var result compoundSelector
 
 	if p.i >= len(p.s) {
-		return oneSelector{}, errors.New("expected selector, found EOF instead")
+		return result, errors.New("expected selector, found EOF instead")
 	}
 
 	switch p.s[p.i] {
@@ -767,15 +755,18 @@ func (p *parser) parseSimpleSelectorSequence() (oneSelector, error) {
 	default:
 		r, err := p.parseTypeSelector()
 		if err != nil {
-			return oneSelector{}, err
+			return result, err
 		}
-		result = r
+		result.selectors = append(result.selectors, r)
 	}
 
 loop:
 	for p.i < len(p.s) {
-		var ns oneSelector
-		var err error
+		var (
+			ns            Matcher
+			err           error
+			pseudoElement string
+		)
 		switch p.s[p.i] {
 		case '#':
 			ns, err = p.parseIDSelector()
@@ -784,39 +775,28 @@ loop:
 		case '[':
 			ns, err = p.parseAttributeSelector()
 		case ':':
-			ns, err = p.parsePseudoclassSelector()
+			ns, pseudoElement, err = p.parsePseudoclassSelector()
 		default:
 			break loop
 		}
 		if err != nil {
-			return oneSelector{}, err
+			return result, err
 		}
 
-		if result.match == nil {
-			if ns.match == nil && ns.PseudoElement != "" { // we found a pseudo-element
-				return oneSelector{}, fmt.Errorf("stand-alone %s pseudo-element not allowed", ns.PseudoElement)
+		if pseudoElement != "" { // we found a pseudo-element
+			if len(result.selectors) == 0 {
+				return result, fmt.Errorf("stand-alone %s pseudo-element not allowed", pseudoElement)
 			}
-			result = ns
+			result.pseudoElement = pseudoElement
 		} else {
-			if ns.PseudoElement == "" { // not a pseudo-element
-				result.match = intersectionSelector(result.match, ns.match)
-			}
-			result.PseudoElement = ns.PseudoElement
-			result.Specificity = result.Specificity.add(ns.Specificity)
+			result.selectors = append(result.selectors, ns)
 		}
 	}
-
-	if result.match == nil {
-		result.match = func(n *html.Node) bool {
-			return n.Type == html.ElementNode
-		}
-	}
-
 	return result, nil
 }
 
 // parseSelector parses a selector that may include combinators.
-func (p *parser) parseSelector() (result oneSelector, err error) {
+func (p *parser) parseSelector() (result MatcherWithPseudo, err error) {
 	p.skipWhitespace()
 	result, err = p.parseSimpleSelectorSequence()
 	if err != nil {
@@ -826,7 +806,7 @@ func (p *parser) parseSelector() (result oneSelector, err error) {
 	for {
 		var (
 			combinator byte
-			c          oneSelector
+			c          compoundSelector
 		)
 		if p.skipWhitespace() {
 			combinator = ' '
@@ -853,17 +833,7 @@ func (p *parser) parseSelector() (result oneSelector, err error) {
 		if err != nil {
 			return
 		}
-		result.Specificity = result.Specificity.add(c.Specificity)
-		switch combinator {
-		case ' ':
-			result.match = descendantSelector(result.match, c.match)
-		case '>':
-			result.match = childSelector(result.match, c.match)
-		case '+':
-			result.match = siblingSelector(result.match, c.match, true)
-		case '~':
-			result.match = siblingSelector(result.match, c.match, false)
-		}
+		result = CombinedSelector{first: result, combinator: combinator, second: c, pseudoElement: c.pseudoElement}
 	}
 }
 

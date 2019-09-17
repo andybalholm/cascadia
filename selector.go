@@ -9,69 +9,20 @@ import (
 	"golang.org/x/net/html"
 )
 
+type Matcher interface {
+	Match(*html.Node) bool
+	Specificity() Specificity
+}
+
+type MatcherWithPseudo interface {
+	Matcher
+	PseudoElement() string
+}
+
 // the Selector type, and functions for creating them
 
-type matcher = func(*html.Node) bool
-
-// Represents one selector in a comma-separated group of selectors.
-// We keep this representation to compute the specificity of the matching
-// nodes.
-// The optionnal field "PseudoElement" holds CSS pseudo-elements :
-// https://www.w3.org/TR/selectors/#pseudo-elements
-type oneSelector struct {
-	match         matcher
-	Specificity   Specificity
-	PseudoElement string
-}
-
 // A Selector is a function which tells whether a node matches or not.
-type Selector []oneSelector
-
-// CheckPseudoElements returns a non nil error if one non zero pseudo element is
-// not in `allowed`
-func (s Selector) CheckPseudoElements(allowed map[string]struct{}) error {
-	for _, sel := range s {
-		if _, ok := allowed[sel.PseudoElement]; sel.PseudoElement != "" && !ok {
-			return fmt.Errorf("unknown pseudo-element : %s", sel.PseudoElement)
-		}
-	}
-	return nil
-}
-
-// unionSelector returns a selector that matches elements that match
-// one on the single selector
-func (s Selector) unionMatch() matcher {
-	return func(n *html.Node) bool {
-		for _, sel := range s {
-			if sel.match(n) {
-				return true
-			}
-		}
-		return false
-	}
-}
-
-// hasChildMatch returns whether n has any child that matches a.
-func hasChildMatch(n *html.Node, a matcher) bool {
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if a(c) {
-			return true
-		}
-	}
-	return false
-}
-
-// hasDescendantMatch performs a depth-first search of n's descendants,
-// testing whether any of them match a. It returns true as soon as a match is
-// found, or false if no match is found.
-func hasDescendantMatch(n *html.Node, a matcher) bool {
-	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if a(c) || (c.Type == html.ElementNode && hasDescendantMatch(c, a)) {
-			return true
-		}
-	}
-	return false
-}
+type Selector []MatcherWithPseudo
 
 // Compile parses a selector and returns, if successful, a Selector object
 // that can be used to match against html.Node objects.
@@ -104,26 +55,26 @@ func (s Selector) MatchAll(n *html.Node) []*html.Node {
 	return s.matchAllInto(n, nil)
 }
 
-func (s Selector) processMatchAllInto(unionMatch matcher, n *html.Node, storage []*html.Node) []*html.Node {
-	if unionMatch(n) {
+func (s Selector) matchAllInto(n *html.Node, storage []*html.Node) []*html.Node {
+	if s.Match(n) {
 		storage = append(storage, n)
 	}
 
 	for child := n.FirstChild; child != nil; child = child.NextSibling {
-		storage = s.processMatchAllInto(unionMatch, child, storage)
+		storage = s.matchAllInto(child, storage)
 	}
 
 	return storage
 }
 
-func (s Selector) matchAllInto(n *html.Node, storage []*html.Node) []*html.Node {
-	unionMatch := s.unionMatch() // compute only once
-	return s.processMatchAllInto(unionMatch, n, storage)
-}
-
-// Match returns true if the node matches the selector.
+// Match returns true if the node matches one of the single selectors.
 func (s Selector) Match(n *html.Node) bool {
-	return s.unionMatch()(n)
+	for _, sel := range s {
+		if sel.Match(n) {
+			return true
+		}
+	}
+	return false
 }
 
 // MatchFirst returns the first node that matches s, from n and its children.
@@ -143,24 +94,34 @@ func (s Selector) MatchFirst(n *html.Node) *html.Node {
 
 // Filter returns the nodes in nodes that match the selector.
 func (s Selector) Filter(nodes []*html.Node) (result []*html.Node) {
-	unionMatch := s.unionMatch()
 	for _, n := range nodes {
-		if unionMatch(n) {
+		if s.Match(n) {
 			result = append(result, n)
 		}
 	}
 	return result
 }
 
-// typeSelector returns a Selector that matches elements with a given tag name.
-func typeSelector(tag string) oneSelector {
-	tag = toLowerASCII(tag)
-	return oneSelector{
-		match: func(n *html.Node) bool {
-			return n.Type == html.ElementNode && n.Data == tag
-		},
-		Specificity: Specificity{0, 0, 1},
+// hasChildMatch returns whether n has any child that matches a.
+func hasChildMatch(n *html.Node, a matcher) bool {
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if a(c) {
+			return true
+		}
 	}
+	return false
+}
+
+// hasDescendantMatch performs a depth-first search of n's descendants,
+// testing whether any of them match a. It returns true as soon as a match is
+// found, or false if no match is found.
+func hasDescendantMatch(n *html.Node, a matcher) bool {
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if a(c) || (c.Type == html.ElementNode && hasDescendantMatch(c, a)) {
+			return true
+		}
+	}
+	return false
 }
 
 // toLowerASCII returns s with all ASCII capital letters lowercased.
@@ -183,20 +144,25 @@ func toLowerASCII(s string) string {
 	return string(b)
 }
 
+// matches elements where the attribute named key satisifes the function f.
+func matchAttribute(n *html.Node, key string, f func(string) bool) bool {
+	if n.Type != html.ElementNode {
+		return false
+	}
+	for _, a := range n.Attr {
+		if a.Key == key && f(a.Val) {
+			return true
+		}
+	}
+	return false
+}
+
 // attributeSelector returns a Selector that matches elements
 // where the attribute named key satisifes the function f.
 func attributeSelector(key string, f func(string) bool) matcher {
 	key = toLowerASCII(key)
 	return func(n *html.Node) bool {
-		if n.Type != html.ElementNode {
-			return false
-		}
-		for _, a := range n.Attr {
-			if a.Key == key && f(a.Val) {
-				return true
-			}
-		}
-		return false
+		return matchAttribute(n, key, f)
 	}
 }
 
@@ -232,23 +198,27 @@ func attributeNotEqualSelector(key, val string) matcher {
 	}
 }
 
+// returns true if s is a whitespace-separated list that includes val.
+func matchInclude(val, s string) bool {
+	for s != "" {
+		i := strings.IndexAny(s, " \t\r\n\f")
+		if i == -1 {
+			return s == val
+		}
+		if s[:i] == val {
+			return true
+		}
+		s = s[i+1:]
+	}
+	return false
+}
+
 // attributeIncludesSelector returns a Selector that matches elements where
 // the attribute named key is a whitespace-separated list that includes val.
 func attributeIncludesSelector(key, val string) matcher {
-	return attributeSelector(key,
-		func(s string) bool {
-			for s != "" {
-				i := strings.IndexAny(s, " \t\r\n\f")
-				if i == -1 {
-					return s == val
-				}
-				if s[:i] == val {
-					return true
-				}
-				s = s[i+1:]
-			}
-			return false
-		})
+	return attributeSelector(key, func(s string) bool {
+		return matchInclude(val, s)
+	})
 }
 
 // attributeDashmatchSelector returns a Selector that matches elements where
@@ -312,14 +282,6 @@ func attributeRegexSelector(key string, rx *regexp.Regexp) matcher {
 		func(s string) bool {
 			return rx.MatchString(s)
 		})
-}
-
-// intersectionSelector returns a selector that matches nodes that match
-// both a and b.
-func intersectionSelector(a, b matcher) matcher {
-	return func(n *html.Node) bool {
-		return a(n) && b(n)
-	}
 }
 
 // negatedSelector returns a selector that matches elements that do not match a.
@@ -592,60 +554,51 @@ func emptyElementSelector(n *html.Node) bool {
 	return true
 }
 
-// descendantSelector returns a Selector that matches an element if
-// it matches d and has an ancestor that matches a.
-func descendantSelector(a, d matcher) matcher {
-	return func(n *html.Node) bool {
-		if !d(n) {
-			return false
-		}
-
-		for p := n.Parent; p != nil; p = p.Parent {
-			if a(p) {
-				return true
-			}
-		}
-
+// matches an element if it matches d and has an ancestor that matches a.
+func descendantMatch(a, d Matcher, n *html.Node) bool {
+	if !d.Match(n) {
 		return false
 	}
-}
 
-// childSelector returns a Selector that matches an element if
-// it matches d and its parent matches a.
-func childSelector(a, d matcher) matcher {
-	return func(n *html.Node) bool {
-		return d(n) && n.Parent != nil && a(n.Parent)
+	for p := n.Parent; p != nil; p = p.Parent {
+		if a.Match(p) {
+			return true
+		}
 	}
+
+	return false
 }
 
-// siblingSelector returns a Selector that matches an element
-// if it matches s2 and in is preceded by an element that matches s1.
+// matches an element if it matches d and its parent matches a.
+func childMatch(a, d Matcher, n *html.Node) bool {
+	return d.Match(n) && n.Parent != nil && a.Match(n.Parent)
+}
+
+// matches an element if it matches s2 and is preceded by an element that matches s1.
 // If adjacent is true, the sibling must be immediately before the element.
-func siblingSelector(s1, s2 matcher, adjacent bool) matcher {
-	return func(n *html.Node) bool {
-		if !s2(n) {
-			return false
-		}
-
-		if adjacent {
-			for n = n.PrevSibling; n != nil; n = n.PrevSibling {
-				if n.Type == html.TextNode || n.Type == html.CommentNode {
-					continue
-				}
-				return s1(n)
-			}
-			return false
-		}
-
-		// Walk backwards looking for element that matches s1
-		for c := n.PrevSibling; c != nil; c = c.PrevSibling {
-			if s1(c) {
-				return true
-			}
-		}
-
+func siblingMatch(s1, s2 Matcher, adjacent bool, n *html.Node) bool {
+	if !s2.Match(n) {
 		return false
 	}
+
+	if adjacent {
+		for n = n.PrevSibling; n != nil; n = n.PrevSibling {
+			if n.Type == html.TextNode || n.Type == html.CommentNode {
+				continue
+			}
+			return s1.Match(n)
+		}
+		return false
+	}
+
+	// Walk backwards looking for element that matches s1
+	for c := n.PrevSibling; c != nil; c = c.PrevSibling {
+		if s1.Match(c) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // rootSelector implements :root
