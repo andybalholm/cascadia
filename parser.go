@@ -9,23 +9,6 @@ import (
 	"strings"
 )
 
-var (
-	h                       struct{}
-	SupportedPseudoElements = map[string]struct{}{
-		"after":          h,
-		"backdrop":       h,
-		"before":         h,
-		"cue":            h,
-		"first-letter":   h,
-		"first-line":     h,
-		"grammar-error":  h,
-		"marker":         h,
-		"placeholder":    h,
-		"selectio":       h,
-		"spelling-error": h,
-	}
-)
-
 // a parser for CSS selectors
 type parser struct {
 	s string // the source text
