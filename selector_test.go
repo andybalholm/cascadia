@@ -2,6 +2,8 @@ package cascadia
 
 import (
 	"bytes"
+	"fmt"
+	"log"
 	"strings"
 	"testing"
 
@@ -15,7 +17,9 @@ type selectorTest struct {
 
 func nodeString(n *html.Node) string {
 	buf := bytes.NewBufferString("")
-	html.Render(buf, n)
+	if err := html.Render(buf, n); err != nil {
+		log.Fatal(err)
+	}
 	return buf.String()
 }
 
@@ -547,7 +551,7 @@ var selectorTests = []selectorTest{
 			<li><a id="a1" href="http://www.google.com/finance"/>
 			<li><a id="a2" href="http://finance.yahoo.com/"/>
 			<li><a id="a3" href="https://www.google.com/news"></a>
-			<li><a id="a4" href="http://news.yahoo.com"/>
+			<u><a id="a4" href="http://news.yahoo.com"/>
 		</ul>`,
 		`[href#=(^https:\/\/[^\/]*\/?news)]`,
 		[]string{
@@ -612,18 +616,24 @@ var selectorTests = []selectorTest{
 	},
 }
 
+func setup(selector, testHTML string) (Selector, *html.Node, error) {
+	s, err := Compile(selector)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error compiling %q: %s", selector, err)
+	}
+
+	doc, err := html.Parse(strings.NewReader(testHTML))
+	if err != nil {
+		return nil, nil, fmt.Errorf("error parsing %q: %s", testHTML, err)
+	}
+	return s, doc, nil
+}
+
 func TestSelectors(t *testing.T) {
 	for _, test := range selectorTests {
-		s, err := Compile(test.selector)
+		s, doc, err := setup(test.selector, test.HTML)
 		if err != nil {
-			t.Errorf("error compiling %q: %s", test.selector, err)
-			continue
-		}
-
-		doc, err := html.Parse(strings.NewReader(test.HTML))
-		if err != nil {
-			t.Errorf("error parsing %q: %s", test.HTML, err)
-			continue
+			t.Error(err)
 		}
 
 		matches := s.MatchAll(doc)
