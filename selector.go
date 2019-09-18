@@ -110,7 +110,7 @@ type classSelector struct {
 	class string
 }
 
-// Matches elements by id attribute.
+// Matches elements by class attribute.
 func (t classSelector) Match(n *html.Node) bool {
 	return matchAttribute(n, "class", func(s string) bool {
 		return matchInclude(t.class, s)
