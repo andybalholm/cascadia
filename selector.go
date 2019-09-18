@@ -9,15 +9,16 @@ import (
 	"golang.org/x/net/html"
 )
 
-// the Selector type, and functions for creating them
-
-// Matcher is the interface for all selectors
+// Matcher is the interface for all selectors.
+// Can be converted to a selector with s := Selector(m.Match)
 type Matcher interface {
 	Match(*html.Node) bool
 }
 
-// A Selector is a parsed list of comma-separated selectors
-type Selector []Matcher
+// the Selector type, and functions for creating them
+
+// A Selector is a function which tells whether a node matches or not.
+type Selector func(*html.Node) bool
 
 // Compile parses a selector and returns, if successful, a Selector object
 // that can be used to match against html.Node objects.
@@ -32,7 +33,7 @@ func Compile(sel string) (Selector, error) {
 		return nil, fmt.Errorf("parsing %q: %d bytes left over", sel, len(sel)-p.i)
 	}
 
-	return compiled, nil
+	return Selector(compiled.Match), nil
 }
 
 // MustCompile is like Compile, but panics instead of returning an error.
@@ -51,7 +52,7 @@ func (s Selector) MatchAll(n *html.Node) []*html.Node {
 }
 
 func (s Selector) matchAllInto(n *html.Node, storage []*html.Node) []*html.Node {
-	if s.Match(n) {
+	if s(n) {
 		storage = append(storage, n)
 	}
 
@@ -62,14 +63,9 @@ func (s Selector) matchAllInto(n *html.Node, storage []*html.Node) []*html.Node 
 	return storage
 }
 
-// Match returns true if the node matches one of the single selectors.
+// Match returns true if the node matches the selector.
 func (s Selector) Match(n *html.Node) bool {
-	for _, sel := range s {
-		if sel.Match(n) {
-			return true
-		}
-	}
-	return false
+	return s(n)
 }
 
 // MatchFirst returns the first node that matches s, from n and its children.
@@ -90,7 +86,7 @@ func (s Selector) MatchFirst(n *html.Node) *html.Node {
 // Filter returns the nodes in nodes that match the selector.
 func (s Selector) Filter(nodes []*html.Node) (result []*html.Node) {
 	for _, n := range nodes {
-		if s.Match(n) {
+		if s(n) {
 			result = append(result, n)
 		}
 	}
@@ -671,5 +667,18 @@ func siblingMatch(s1, s2 Matcher, adjacent bool, n *html.Node) bool {
 		}
 	}
 
+	return false
+}
+
+// a parsed list of comma-separated selectors
+type selectorGroup []Matcher
+
+// Match returns true if the node matches one of the single selectors.
+func (s selectorGroup) Match(n *html.Node) bool {
+	for _, sel := range s {
+		if sel.Match(n) {
+			return true
+		}
+	}
 	return false
 }

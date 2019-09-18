@@ -778,7 +778,7 @@ func (p *parser) parseSelector() (result Matcher, err error) {
 }
 
 // parseSelectorGroup parses a group of selectors, separated by commas.
-func (p *parser) parseSelectorGroup() (result Selector, err error) {
+func (p *parser) parseSelectorGroup() (result selectorGroup, err error) {
 	current, err := p.parseSelector()
 	if err != nil {
 		return
