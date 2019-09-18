@@ -425,12 +425,10 @@ var errUnmatchedParenthesis = errors.New("unmatched '('")
 // parsePseudoclassSelector parses a pseudoclass selector like :not(p)
 func (p *parser) parsePseudoclassSelector() (out Matcher, err error) {
 	if p.i >= len(p.s) {
-		err = fmt.Errorf("expected pseudoclass selector (:pseudoclass), found EOF instead")
-		return
+		return nil, fmt.Errorf("expected pseudoclass selector (:pseudoclass), found EOF instead")
 	}
 	if p.s[p.i] != ':' {
-		err = fmt.Errorf("expected attribute selector (:pseudoclass), found '%c' instead", p.s[p.i])
-		return
+		return nil, fmt.Errorf("expected attribute selector (:pseudoclass), found '%c' instead", p.s[p.i])
 	}
 
 	p.i++
@@ -687,11 +685,11 @@ invalid:
 
 // parseSimpleSelectorSequence parses a selector sequence that applies to
 // a single element.
-func (p *parser) parseSimpleSelectorSequence() (compoundSelector, error) {
-	var result compoundSelector
+func (p *parser) parseSimpleSelectorSequence() (Matcher, error) {
+	var selectors []Matcher
 
 	if p.i >= len(p.s) {
-		return result, errors.New("expected selector, found EOF instead")
+		return nil, errors.New("expected selector, found EOF instead")
 	}
 
 	switch p.s[p.i] {
@@ -703,9 +701,9 @@ func (p *parser) parseSimpleSelectorSequence() (compoundSelector, error) {
 	default:
 		r, err := p.parseTypeSelector()
 		if err != nil {
-			return result, err
+			return nil, err
 		}
-		result.selectors = append(result.selectors, r)
+		selectors = append(selectors, r)
 	}
 
 loop:
@@ -727,32 +725,35 @@ loop:
 			break loop
 		}
 		if err != nil {
-			return result, err
+			return nil, err
 		}
 
-		result.selectors = append(result.selectors, ns)
+		selectors = append(selectors, ns)
 	}
-	return result, nil
+	if len(selectors) == 1 { // no need wrap the selectors in compoundSelector
+		return selectors[0], nil
+	}
+	return compoundSelector{selectors: selectors}, nil
 }
 
 // parseSelector parses a selector that may include combinators.
-func (p *parser) parseSelector() (result Matcher, err error) {
+func (p *parser) parseSelector() (Matcher, error) {
 	p.skipWhitespace()
-	result, err = p.parseSimpleSelectorSequence()
+	result, err := p.parseSimpleSelectorSequence()
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	for {
 		var (
 			combinator byte
-			c          compoundSelector
+			c          Matcher
 		)
 		if p.skipWhitespace() {
 			combinator = ' '
 		}
 		if p.i >= len(p.s) {
-			return
+			return result, nil
 		}
 
 		switch p.s[p.i] {
@@ -762,32 +763,32 @@ func (p *parser) parseSelector() (result Matcher, err error) {
 			p.skipWhitespace()
 		case ',', ')':
 			// These characters can't begin a selector, but they can legally occur after one.
-			return
+			return result, nil
 		}
 
 		if combinator == 0 {
-			return
+			return result, nil
 		}
 
 		c, err = p.parseSimpleSelectorSequence()
 		if err != nil {
-			return
+			return nil, err
 		}
 		result = combinedSelector{first: result, combinator: combinator, second: c}
 	}
 }
 
 // parseSelectorGroup parses a group of selectors, separated by commas.
-func (p *parser) parseSelectorGroup() (result selectorGroup, err error) {
+func (p *parser) parseSelectorGroup() (Matcher, error) {
 	current, err := p.parseSelector()
 	if err != nil {
-		return
+		return nil, err
 	}
-	result = append(result, current)
+	result := selectorGroup{current}
 
 	for p.i < len(p.s) {
 		if p.s[p.i] != ',' {
-			return result, nil
+			break
 		}
 		p.i++
 		c, err := p.parseSelector()
@@ -796,5 +797,8 @@ func (p *parser) parseSelectorGroup() (result selectorGroup, err error) {
 		}
 		result = append(result, c)
 	}
-	return
+	if len(result) == 1 {
+		return result[0], nil
+	}
+	return result, nil
 }
