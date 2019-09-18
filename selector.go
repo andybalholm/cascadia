@@ -101,8 +101,6 @@ func (s Selector) Filter(nodes []*html.Node) (result []*html.Node) {
 // -------------------------- Low - level selectors --------------------------
 // ---------------------------------------------------------------------------
 
-type matcher = func(*html.Node) bool
-
 type tagSelector struct {
 	tag string
 }
@@ -288,19 +286,19 @@ func (s relativePseudoClassSelector) Match(n *html.Node) bool {
 		return !s.match.Match(n)
 	case "has":
 		//  matches elements with any descendant that matches a.
-		return hasDescendantMatch(n, s.match.Match)
+		return hasDescendantMatch(n, s.match)
 	case "haschild":
 		// matches elements with a child that matches a.
-		return hasChildMatch(n, s.match.Match)
+		return hasChildMatch(n, s.match)
 	default:
 		panic(fmt.Sprintf("unsupported relative pseudo class selector : %s", s.name))
 	}
 }
 
 // hasChildMatch returns whether n has any child that matches a.
-func hasChildMatch(n *html.Node, a matcher) bool {
+func hasChildMatch(n *html.Node, a Matcher) bool {
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if a(c) {
+		if a.Match(c) {
 			return true
 		}
 	}
@@ -310,9 +308,9 @@ func hasChildMatch(n *html.Node, a matcher) bool {
 // hasDescendantMatch performs a depth-first search of n's descendants,
 // testing whether any of them match a. It returns true as soon as a match is
 // found, or false if no match is found.
-func hasDescendantMatch(n *html.Node, a matcher) bool {
+func hasDescendantMatch(n *html.Node, a Matcher) bool {
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		if a(c) || (c.Type == html.ElementNode && hasDescendantMatch(c, a)) {
+		if a.Match(c) || (c.Type == html.ElementNode && hasDescendantMatch(c, a)) {
 			return true
 		}
 	}
