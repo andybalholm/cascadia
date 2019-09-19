@@ -663,8 +663,8 @@ func TestSelectors(t *testing.T) {
 	}
 }
 
-func setupSel(selector, testHTML string) (Sel, *html.Node, error) {
-	s, err := New(selector)
+func setupMatcher(selector, testHTML string) (Matcher, *html.Node, error) {
+	s, err := ParseGroup(selector)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error compiling %q: %s", selector, err)
 	}
@@ -678,9 +678,10 @@ func setupSel(selector, testHTML string) (Sel, *html.Node, error) {
 
 func TestMatchers(t *testing.T) {
 	for _, test := range selectorTests {
-		s, doc, err := setupSel(test.selector, test.HTML)
+		s, doc, err := setupMatcher(test.selector, test.HTML)
 		if err != nil {
 			t.Error(err)
+			continue
 		}
 
 		matches := QueryAll(doc, s)

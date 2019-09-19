@@ -737,7 +737,7 @@ loop:
 }
 
 // parseSelector parses a selector that may include combinators.
-func (p *parser) parseSelector() (Matcher, error) {
+func (p *parser) parseSelector() (Sel, error) {
 	p.skipWhitespace()
 	result, err := p.parseSimpleSelectorSequence()
 	if err != nil {
@@ -747,7 +747,7 @@ func (p *parser) parseSelector() (Matcher, error) {
 	for {
 		var (
 			combinator byte
-			c          Matcher
+			c          Sel
 		)
 		if p.skipWhitespace() {
 			combinator = ' '
@@ -779,12 +779,12 @@ func (p *parser) parseSelector() (Matcher, error) {
 }
 
 // parseSelectorGroup parses a group of selectors, separated by commas.
-func (p *parser) parseSelectorGroup() (Matcher, error) {
+func (p *parser) parseSelectorGroup() (SelectorGroup, error) {
 	current, err := p.parseSelector()
 	if err != nil {
 		return nil, err
 	}
-	result := selectorGroup{current}
+	result := SelectorGroup{current}
 
 	for p.i < len(p.s) {
 		if p.s[p.i] != ',' {
@@ -796,9 +796,6 @@ func (p *parser) parseSelectorGroup() (Matcher, error) {
 			return nil, err
 		}
 		result = append(result, c)
-	}
-	if len(result) == 1 {
-		return result[0], nil
 	}
 	return result, nil
 }

@@ -22,8 +22,23 @@ type Sel interface {
 	Matcher
 }
 
-// New parses a selector.
-func New(sel string) (Sel, error) {
+// Parse parses a selector.
+func Parse(sel string) (Sel, error) {
+	p := &parser{s: sel}
+	compiled, err := p.parseSelector()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.i < len(sel) {
+		return nil, fmt.Errorf("parsing %q: %d bytes left over", sel, len(sel)-p.i)
+	}
+
+	return compiled, nil
+}
+
+// ParseGroup parses a selector, or a group of selectors separated by commas.
+func ParseGroup(sel string) (SelectorGroup, error) {
 	p := &parser{s: sel}
 	compiled, err := p.parseSelectorGroup()
 	if err != nil {
@@ -46,7 +61,7 @@ type Selector func(*html.Node) bool
 // Compile parses a selector and returns, if successful, a Selector object
 // that can be used to match against html.Node objects.
 func Compile(sel string) (Selector, error) {
-	compiled, err := New(sel)
+	compiled, err := ParseGroup(sel)
 	if err != nil {
 		return nil, err
 	}
@@ -726,11 +741,12 @@ func siblingMatch(s1, s2 Matcher, adjacent bool, n *html.Node) bool {
 	return false
 }
 
-// a parsed list of comma-separated selectors
-type selectorGroup []Matcher
+// A SelectorGroup is a list of selectors, which matches if any of the
+// individual selectors matches.
+type SelectorGroup []Sel
 
 // Match returns true if the node matches one of the single selectors.
-func (s selectorGroup) Match(n *html.Node) bool {
+func (s SelectorGroup) Match(n *html.Node) bool {
 	for _, sel := range s {
 		if sel.Match(n) {
 			return true
