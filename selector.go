@@ -9,20 +9,21 @@ import (
 	"golang.org/x/net/html"
 )
 
-// Matcher is the interface for all selectors.
-// Can be converted to a selector with s := Selector(m.Match)
+// Matcher is the interface for basic selector functionality.
+// Match returns whether a selector matches n.
 type Matcher interface {
-	Match(*html.Node) bool
+	Match(n *html.Node) bool
 }
 
-// the Selector type, and functions for creating them
+// Sel is the interface for all the functionality provided by selectors.
+// It is currently the same as Matcher, but other methods may be added in the
+// future.
+type Sel interface {
+	Matcher
+}
 
-// A Selector is a function which tells whether a node matches or not.
-type Selector func(*html.Node) bool
-
-// Compile parses a selector and returns, if successful, a Selector object
-// that can be used to match against html.Node objects.
-func Compile(sel string) (Selector, error) {
+// New parses a selector.
+func New(sel string) (Sel, error) {
 	p := &parser{s: sel}
 	compiled, err := p.parseSelectorGroup()
 	if err != nil {
@@ -31,6 +32,23 @@ func Compile(sel string) (Selector, error) {
 
 	if p.i < len(sel) {
 		return nil, fmt.Errorf("parsing %q: %d bytes left over", sel, len(sel)-p.i)
+	}
+
+	return compiled, nil
+}
+
+// A Selector is a function which tells whether a node matches or not.
+//
+// This type is maintained for compatibility; I recommend using the newer and
+// more idiomatic interfaces Sel and Matcher.
+type Selector func(*html.Node) bool
+
+// Compile parses a selector and returns, if successful, a Selector object
+// that can be used to match against html.Node objects.
+func Compile(sel string) (Selector, error) {
+	compiled, err := New(sel)
+	if err != nil {
+		return nil, err
 	}
 
 	return Selector(compiled.Match), nil
@@ -63,6 +81,23 @@ func (s Selector) matchAllInto(n *html.Node, storage []*html.Node) []*html.Node 
 	return storage
 }
 
+func queryInto(n *html.Node, m Matcher, storage []*html.Node) []*html.Node {
+	for child := n.FirstChild; child != nil; child = child.NextSibling {
+		if m.Match(child) {
+			storage = append(storage, child)
+		}
+		storage = queryInto(child, m, storage)
+	}
+
+	return storage
+}
+
+// QueryAll returns a slice of all the nodes that match m, from the descendants
+// of n.
+func QueryAll(n *html.Node, m Matcher) []*html.Node {
+	return queryInto(n, m, nil)
+}
+
 // Match returns true if the node matches the selector.
 func (s Selector) Match(n *html.Node) bool {
 	return s(n)
@@ -83,6 +118,21 @@ func (s Selector) MatchFirst(n *html.Node) *html.Node {
 	return nil
 }
 
+// Query returns the first node that matches m, from the descendants of n.
+// If none matches, it returns nil.
+func Query(n *html.Node, m Matcher) *html.Node {
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if m.Match(c) {
+			return c
+		}
+		if matched := Query(c, m); matched != nil {
+			return matched
+		}
+	}
+
+	return nil
+}
+
 // Filter returns the nodes in nodes that match the selector.
 func (s Selector) Filter(nodes []*html.Node) (result []*html.Node) {
 	for _, n := range nodes {
@@ -93,9 +143,15 @@ func (s Selector) Filter(nodes []*html.Node) (result []*html.Node) {
 	return result
 }
 
-// ---------------------------------------------------------------------------
-// -------------------------- Low - level selectors --------------------------
-// ---------------------------------------------------------------------------
+// Filter returns the nodes that match m.
+func Filter(nodes []*html.Node, m Matcher) (result []*html.Node) {
+	for _, n := range nodes {
+		if m.Match(n) {
+			result = append(result, n)
+		}
+	}
+	return result
+}
 
 type tagSelector struct {
 	tag string

@@ -551,7 +551,7 @@ var selectorTests = []selectorTest{
 			<li><a id="a1" href="http://www.google.com/finance"/>
 			<li><a id="a2" href="http://finance.yahoo.com/"/>
 			<li><a id="a3" href="https://www.google.com/news"></a>
-			<u><a id="a4" href="http://news.yahoo.com"/>
+			<li><a id="a4" href="http://news.yahoo.com"/>
 		</ul>`,
 		`[href#=(^https:\/\/[^\/]*\/?news)]`,
 		[]string{
@@ -658,6 +658,53 @@ func TestSelectors(t *testing.T) {
 			got := nodeString(firstMatch)
 			if got != test.results[0] {
 				t.Errorf("MatchFirst: selector %s want %s, got %s", test.selector, test.results[0], got)
+			}
+		}
+	}
+}
+
+func setupSel(selector, testHTML string) (Sel, *html.Node, error) {
+	s, err := New(selector)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error compiling %q: %s", selector, err)
+	}
+
+	doc, err := html.Parse(strings.NewReader(testHTML))
+	if err != nil {
+		return nil, nil, fmt.Errorf("error parsing %q: %s", testHTML, err)
+	}
+	return s, doc, nil
+}
+
+func TestMatchers(t *testing.T) {
+	for _, test := range selectorTests {
+		s, doc, err := setupSel(test.selector, test.HTML)
+		if err != nil {
+			t.Error(err)
+		}
+
+		matches := QueryAll(doc, s)
+		if len(matches) != len(test.results) {
+			t.Errorf("selector %s wanted %d elements, got %d instead", test.selector, len(test.results), len(matches))
+			continue
+		}
+
+		for i, m := range matches {
+			got := nodeString(m)
+			if got != test.results[i] {
+				t.Errorf("selector %s wanted %s, got %s instead", test.selector, test.results[i], got)
+			}
+		}
+
+		firstMatch := Query(doc, s)
+		if len(test.results) == 0 {
+			if firstMatch != nil {
+				t.Errorf("Query: selector %s want nil, got %s", test.selector, nodeString(firstMatch))
+			}
+		} else {
+			got := nodeString(firstMatch)
+			if got != test.results[0] {
+				t.Errorf("Query: selector %s want %s, got %s", test.selector, test.results[0], got)
 			}
 		}
 	}
