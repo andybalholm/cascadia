@@ -423,7 +423,7 @@ var errExpectedClosingParenthesis = errors.New("expected ')' but didn't find it"
 var errUnmatchedParenthesis = errors.New("unmatched '('")
 
 // parsePseudoclassSelector parses a pseudoclass selector like :not(p)
-func (p *parser) parsePseudoclassSelector() (out Matcher, err error) {
+func (p *parser) parsePseudoclassSelector() (out Sel, err error) {
 	if p.i >= len(p.s) {
 		return nil, fmt.Errorf("expected pseudoclass selector (:pseudoclass), found EOF instead")
 	}
@@ -685,8 +685,8 @@ invalid:
 
 // parseSimpleSelectorSequence parses a selector sequence that applies to
 // a single element.
-func (p *parser) parseSimpleSelectorSequence() (Matcher, error) {
-	var selectors []Matcher
+func (p *parser) parseSimpleSelectorSequence() (Sel, error) {
+	var selectors []Sel
 
 	if p.i >= len(p.s) {
 		return nil, errors.New("expected selector, found EOF instead")
@@ -709,7 +709,7 @@ func (p *parser) parseSimpleSelectorSequence() (Matcher, error) {
 loop:
 	for p.i < len(p.s) {
 		var (
-			ns  Matcher
+			ns  Sel
 			err error
 		)
 		switch p.s[p.i] {
