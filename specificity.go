@@ -18,8 +18,9 @@ func (s Specificity) Less(other Specificity) bool {
 	return false
 }
 
-func (s *Specificity) Add(other Specificity) {
+func (s Specificity) Add(other Specificity) Specificity {
 	for i, sp := range other {
 		s[i] += sp
 	}
+	return s
 }

@@ -732,7 +732,7 @@ func (t compoundSelector) Match(n *html.Node) bool {
 func (s compoundSelector) Specificity() Specificity {
 	var out Specificity
 	for _, sel := range s.selectors {
-		out.Add(sel.Specificity())
+		out = out.Add(sel.Specificity())
 	}
 	return out
 }
@@ -813,7 +813,7 @@ func siblingMatch(s1, s2 Matcher, adjacent bool, n *html.Node) bool {
 func (s combinedSelector) Specificity() Specificity {
 	spec := s.first.Specificity()
 	if s.second != nil {
-		spec.Add(s.second.Specificity())
+		spec = spec.Add(s.second.Specificity())
 	}
 	return spec
 }
