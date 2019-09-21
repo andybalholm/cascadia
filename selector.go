@@ -20,6 +20,7 @@ type Matcher interface {
 // future.
 type Sel interface {
 	Matcher
+	Specificity() Specificity
 }
 
 // Parse parses a selector.
@@ -177,6 +178,10 @@ func (t tagSelector) Match(n *html.Node) bool {
 	return n.Type == html.ElementNode && n.Data == t.tag
 }
 
+func (c tagSelector) Specificity() Specificity {
+	return Specificity{0, 0, 1}
+}
+
 type classSelector struct {
 	class string
 }
@@ -188,6 +193,10 @@ func (t classSelector) Match(n *html.Node) bool {
 	})
 }
 
+func (c classSelector) Specificity() Specificity {
+	return Specificity{0, 1, 0}
+}
+
 type idSelector struct {
 	id string
 }
@@ -197,6 +206,10 @@ func (t idSelector) Match(n *html.Node) bool {
 	return matchAttribute(n, "id", func(s string) bool {
 		return s == t.id
 	})
+}
+
+func (c idSelector) Specificity() Specificity {
+	return Specificity{1, 0, 0}
 }
 
 type attrSelector struct {
@@ -335,12 +348,16 @@ func attributeRegexMatch(key string, rx *regexp.Regexp, n *html.Node) bool {
 		})
 }
 
+func (c attrSelector) Specificity() Specificity {
+	return Specificity{0, 1, 0}
+}
+
 // ---------------- Pseudo class selectors ----------------
 // we use severals concrete types of pseudo-class selectors
 
 type relativePseudoClassSelector struct {
 	name  string // one of "not", "has", "haschild"
-	match Matcher
+	match SelectorGroup
 }
 
 func (s relativePseudoClassSelector) Match(n *html.Node) bool {
@@ -384,6 +401,20 @@ func hasDescendantMatch(n *html.Node, a Matcher) bool {
 	return false
 }
 
+// Specificity returns the specificity of the most specific selectors
+// in the pseudo-class arguments.
+// See https://www.w3.org/TR/selectors/#specificity-rules
+func (s relativePseudoClassSelector) Specificity() Specificity {
+	var max Specificity
+	for _, sel := range s.match {
+		newSpe := sel.Specificity()
+		if max.Less(newSpe) {
+			max = newSpe
+		}
+	}
+	return max
+}
+
 type containsPseudoClassSelector struct {
 	own   bool
 	value string
@@ -399,6 +430,10 @@ func (s containsPseudoClassSelector) Match(n *html.Node) bool {
 		text = strings.ToLower(nodeText(n))
 	}
 	return strings.Contains(text, s.value)
+}
+
+func (s containsPseudoClassSelector) Specificity() Specificity {
+	return Specificity{0, 1, 0}
 }
 
 type regexpPseudoClassSelector struct {
@@ -447,6 +482,10 @@ func nodeOwnText(n *html.Node) string {
 		}
 	}
 	return b.String()
+}
+
+func (s regexpPseudoClassSelector) Specificity() Specificity {
+	return Specificity{0, 1, 0}
 }
 
 type nthPseudoClassSelector struct {
@@ -578,6 +617,12 @@ func simpleNthLastChildMatch(b int, ofType bool, n *html.Node) bool {
 	return false
 }
 
+// Specificity for nth-child pseudo-class.
+// Does not support a list of selectors
+func (s nthPseudoClassSelector) Specificity() Specificity {
+	return Specificity{0, 1, 0}
+}
+
 type onlyChildPseudoClassSelector struct {
 	ofType bool
 }
@@ -612,11 +657,19 @@ func (s onlyChildPseudoClassSelector) Match(n *html.Node) bool {
 	return count == 1
 }
 
+func (s onlyChildPseudoClassSelector) Specificity() Specificity {
+	return Specificity{0, 1, 0}
+}
+
 type inputPseudoClassSelector struct{}
 
 // Matches input, select, textarea and button elements.
 func (s inputPseudoClassSelector) Match(n *html.Node) bool {
 	return n.Type == html.ElementNode && (n.Data == "input" || n.Data == "select" || n.Data == "textarea" || n.Data == "button")
+}
+
+func (s inputPseudoClassSelector) Specificity() Specificity {
+	return Specificity{0, 1, 0}
 }
 
 type emptyElementPseudoClassSelector struct{}
@@ -637,6 +690,10 @@ func (s emptyElementPseudoClassSelector) Match(n *html.Node) bool {
 	return true
 }
 
+func (s emptyElementPseudoClassSelector) Specificity() Specificity {
+	return Specificity{0, 1, 0}
+}
+
 type rootPseudoClassSelector struct{}
 
 // Match implements :root
@@ -650,8 +707,12 @@ func (s rootPseudoClassSelector) Match(n *html.Node) bool {
 	return n.Parent.Type == html.DocumentNode
 }
 
+func (s rootPseudoClassSelector) Specificity() Specificity {
+	return Specificity{0, 1, 0}
+}
+
 type compoundSelector struct {
-	selectors []Matcher
+	selectors []Sel
 }
 
 // Matches elements if each sub-selectors matches.
@@ -668,10 +729,18 @@ func (t compoundSelector) Match(n *html.Node) bool {
 	return true
 }
 
+func (s compoundSelector) Specificity() Specificity {
+	var out Specificity
+	for _, sel := range s.selectors {
+		out.Add(sel.Specificity())
+	}
+	return out
+}
+
 type combinedSelector struct {
-	first      Matcher
+	first      Sel
 	combinator byte
-	second     Matcher
+	second     Sel
 }
 
 func (t combinedSelector) Match(n *html.Node) bool {
@@ -739,6 +808,14 @@ func siblingMatch(s1, s2 Matcher, adjacent bool, n *html.Node) bool {
 	}
 
 	return false
+}
+
+func (s combinedSelector) Specificity() Specificity {
+	spec := s.first.Specificity()
+	if s.second != nil {
+		spec.Add(s.second.Specificity())
+	}
+	return spec
 }
 
 // A SelectorGroup is a list of selectors, which matches if any of the
