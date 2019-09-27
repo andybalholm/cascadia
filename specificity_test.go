@@ -1,6 +1,7 @@
 package cascadia
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -82,16 +83,24 @@ var testsSpecificity = []testSpec{
 	},
 }
 
+func setupSel(selector, HTML string) (Sel, *html.Node, error) {
+	s, err := Parse(selector)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error compiling %q: %s", selector, err)
+	}
+
+	doc, err := html.Parse(strings.NewReader(HTML))
+	if err != nil {
+		return nil, nil, fmt.Errorf("error parsing %q: %s", HTML, err)
+	}
+	return s, doc, nil
+}
+
 func TestSpecificity(t *testing.T) {
 	for _, test := range testsSpecificity {
-		s, err := Parse(test.selector)
+		s, doc, err := setupSel(test.selector, test.HTML)
 		if err != nil {
-			t.Fatalf("error compiling %q: %s", test.selector, err)
-		}
-
-		doc, err := html.Parse(strings.NewReader(test.HTML))
-		if err != nil {
-			t.Fatalf("error parsing %q: %s", test.HTML, err)
+			t.Fatal(err)
 		}
 		body := doc.FirstChild.LastChild
 		testNode := body.FirstChild.FirstChild.LastChild

@@ -16,11 +16,13 @@ type Matcher interface {
 }
 
 // Sel is the interface for all the functionality provided by selectors.
-// It is currently the same as Matcher, but other methods may be added in the
-// future.
+// It supports CSS specificity and pseudo elements.
 type Sel interface {
 	Matcher
 	Specificity() Specificity
+
+	// Return a pseudo-element, or an empty string.
+	PseudoElement() string
 }
 
 // Parse parses a selector.
@@ -182,6 +184,10 @@ func (c tagSelector) Specificity() Specificity {
 	return Specificity{0, 0, 1}
 }
 
+func (c tagSelector) PseudoElement() string {
+	return ""
+}
+
 type classSelector struct {
 	class string
 }
@@ -197,6 +203,10 @@ func (c classSelector) Specificity() Specificity {
 	return Specificity{0, 1, 0}
 }
 
+func (c classSelector) PseudoElement() string {
+	return ""
+}
+
 type idSelector struct {
 	id string
 }
@@ -210,6 +220,10 @@ func (t idSelector) Match(n *html.Node) bool {
 
 func (c idSelector) Specificity() Specificity {
 	return Specificity{1, 0, 0}
+}
+
+func (c idSelector) PseudoElement() string {
+	return ""
 }
 
 type attrSelector struct {
@@ -352,6 +366,10 @@ func (c attrSelector) Specificity() Specificity {
 	return Specificity{0, 1, 0}
 }
 
+func (c attrSelector) PseudoElement() string {
+	return ""
+}
+
 // ---------------- Pseudo class selectors ----------------
 // we use severals concrete types of pseudo-class selectors
 
@@ -415,6 +433,10 @@ func (s relativePseudoClassSelector) Specificity() Specificity {
 	return max
 }
 
+func (c relativePseudoClassSelector) PseudoElement() string {
+	return ""
+}
+
 type containsPseudoClassSelector struct {
 	own   bool
 	value string
@@ -434,6 +456,10 @@ func (s containsPseudoClassSelector) Match(n *html.Node) bool {
 
 func (s containsPseudoClassSelector) Specificity() Specificity {
 	return Specificity{0, 1, 0}
+}
+
+func (c containsPseudoClassSelector) PseudoElement() string {
+	return ""
 }
 
 type regexpPseudoClassSelector struct {
@@ -486,6 +512,10 @@ func nodeOwnText(n *html.Node) string {
 
 func (s regexpPseudoClassSelector) Specificity() Specificity {
 	return Specificity{0, 1, 0}
+}
+
+func (c regexpPseudoClassSelector) PseudoElement() string {
+	return ""
 }
 
 type nthPseudoClassSelector struct {
@@ -623,6 +653,10 @@ func (s nthPseudoClassSelector) Specificity() Specificity {
 	return Specificity{0, 1, 0}
 }
 
+func (c nthPseudoClassSelector) PseudoElement() string {
+	return ""
+}
+
 type onlyChildPseudoClassSelector struct {
 	ofType bool
 }
@@ -661,6 +695,10 @@ func (s onlyChildPseudoClassSelector) Specificity() Specificity {
 	return Specificity{0, 1, 0}
 }
 
+func (c onlyChildPseudoClassSelector) PseudoElement() string {
+	return ""
+}
+
 type inputPseudoClassSelector struct{}
 
 // Matches input, select, textarea and button elements.
@@ -670,6 +708,10 @@ func (s inputPseudoClassSelector) Match(n *html.Node) bool {
 
 func (s inputPseudoClassSelector) Specificity() Specificity {
 	return Specificity{0, 1, 0}
+}
+
+func (c inputPseudoClassSelector) PseudoElement() string {
+	return ""
 }
 
 type emptyElementPseudoClassSelector struct{}
@@ -694,6 +736,10 @@ func (s emptyElementPseudoClassSelector) Specificity() Specificity {
 	return Specificity{0, 1, 0}
 }
 
+func (c emptyElementPseudoClassSelector) PseudoElement() string {
+	return ""
+}
+
 type rootPseudoClassSelector struct{}
 
 // Match implements :root
@@ -711,8 +757,13 @@ func (s rootPseudoClassSelector) Specificity() Specificity {
 	return Specificity{0, 1, 0}
 }
 
+func (c rootPseudoClassSelector) PseudoElement() string {
+	return ""
+}
+
 type compoundSelector struct {
-	selectors []Sel
+	selectors     []Sel
+	pseudoElement string
 }
 
 // Matches elements if each sub-selectors matches.
@@ -734,7 +785,15 @@ func (s compoundSelector) Specificity() Specificity {
 	for _, sel := range s.selectors {
 		out = out.Add(sel.Specificity())
 	}
+	if s.pseudoElement != "" {
+		// https://drafts.csswg.org/selectors-3/#specificity
+		out = out.Add(Specificity{0, 0, 1})
+	}
 	return out
+}
+
+func (c compoundSelector) PseudoElement() string {
+	return c.pseudoElement
 }
 
 type combinedSelector struct {
@@ -816,6 +875,15 @@ func (s combinedSelector) Specificity() Specificity {
 		spec = spec.Add(s.second.Specificity())
 	}
 	return spec
+}
+
+// on combinedSelector, a pseudo-element only makes sens on the last
+// selector, although others increase specificity.
+func (c combinedSelector) PseudoElement() string {
+	if c.second == nil {
+		return ""
+	}
+	return c.second.PseudoElement()
 }
 
 // A SelectorGroup is a list of selectors, which matches if any of the
