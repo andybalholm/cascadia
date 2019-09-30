@@ -24,10 +24,26 @@ type Sel interface {
 	PseudoElement() string
 }
 
-// Parse parses a selector. Use `ParseGroupWithPseudoElements`
+// Parse parses a selector. Use `ParseWithPseudoElement`
 // if you need support for pseudo-elements.
 func Parse(sel string) (Sel, error) {
 	p := &parser{s: sel}
+	compiled, err := p.parseSelector()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.i < len(sel) {
+		return nil, fmt.Errorf("parsing %q: %d bytes left over", sel, len(sel)-p.i)
+	}
+
+	return compiled, nil
+}
+
+// ParseWithPseudoElement parses a single selector,
+// with support for pseudo-element.
+func ParseWithPseudoElement(sel string) (Sel, error) {
+	p := &parser{s: sel, acceptPseudoElements: true}
 	compiled, err := p.parseSelector()
 	if err != nil {
 		return nil, err

@@ -761,15 +761,12 @@ var testsPseudo = []testPseudo{
 
 func TestPseudoElement(t *testing.T) {
 	for _, test := range testsPseudo {
-		sels, err := ParseGroupWithPseudoElements(test.selector)
+		s, err := ParseWithPseudoElement(test.selector)
 		if err != nil {
 			t.Fatalf("error compiling %q: %s", test.selector, err)
 		}
-		if len(sels) != 1 {
-			t.Fatalf("expected one selector, got %d", len(sels))
-		}
 
-		if _, err = ParseGroup(test.selector); err == nil {
+		if _, err = Parse(test.selector); err == nil {
 			t.Fatalf("selector %s with pseudo-element should not compile", test.selector)
 		}
 
@@ -780,11 +777,10 @@ func TestPseudoElement(t *testing.T) {
 
 		body := doc.FirstChild.LastChild
 		testNode := body.FirstChild.FirstChild.LastChild
-		if !sels.Match(testNode) {
+		if !s.Match(testNode) {
 			t.Errorf("%s didn't match (html tree : \n %s) \n", test.selector, nodeString(doc))
 			continue
 		}
-		s := sels[0]
 		if s.Specificity() != test.spec {
 			t.Errorf("wrong specificity : expected %v got %v", test.spec, s.Specificity())
 		}
