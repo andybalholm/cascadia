@@ -614,6 +614,14 @@ var selectorTests = []selectorTest{
 			`<a href="http://www.foo.com"></a>`,
 		},
 	},
+	{
+		`<html><head></head><body><p></p><div></div><span></span><a></a><form></form></body></html>`,
+		"body > *:nth-child(3n+2)",
+		[]string{
+			"<div></div>",
+			"<form></form>",
+		},
+	},
 }
 
 func setup(selector, testHTML string) (Selector, *html.Node, error) {
@@ -634,6 +642,7 @@ func TestSelectors(t *testing.T) {
 		s, doc, err := setup(test.selector, test.HTML)
 		if err != nil {
 			t.Error(err)
+			continue
 		}
 
 		matches := s.MatchAll(doc)
@@ -707,6 +716,76 @@ func TestMatchers(t *testing.T) {
 			if got != test.results[0] {
 				t.Errorf("Query: selector %s want %s, got %s", test.selector, test.results[0], got)
 			}
+		}
+	}
+}
+
+type testPseudo struct {
+	HTML, selector string
+	spec           Specificity
+	pseudo         string
+}
+
+var testsPseudo = []testPseudo{
+	{
+		HTML:     `<html><body><ul><ol><li id="s12" class="red level"></li></ol></ul></body></html>`,
+		selector: "#s12:not(FOO)::before",
+		spec:     Specificity{1, 0, 2},
+		pseudo:   "before",
+	},
+	{
+		HTML:     `<html><body><ul><ol><li id="s12" class="red level"></li></ol></ul></body></html>`,
+		selector: "#s12::first-line",
+		spec:     Specificity{1, 0, 1},
+		pseudo:   "first-line",
+	},
+	{
+		HTML:     `<html><body><ul><ol><li id="s12" class="red level"></li></ol></ul></body></html>`,
+		selector: "ol > #s12:first-line",
+		spec:     Specificity{1, 0, 2},
+		pseudo:   "first-line",
+	},
+	{
+		HTML:     `<html><body><ul><ol><li id="s12" class="red level"></li></ol></ul></body></html>`,
+		selector: "#s12:not(FOO)::after",
+		spec:     Specificity{1, 0, 2},
+		pseudo:   "after",
+	},
+	{
+		HTML:     `<html><body><ul><ol><li id="s12" class="red level"></li></ol></ul></body></html>`,
+		selector: "LI.red.level:before",
+		spec:     Specificity{0, 2, 2},
+		pseudo:   "before",
+	},
+}
+
+func TestPseudoElement(t *testing.T) {
+	for _, test := range testsPseudo {
+		s, err := ParseWithPseudoElement(test.selector)
+		if err != nil {
+			t.Fatalf("error compiling %q: %s", test.selector, err)
+		}
+
+		if _, err = Parse(test.selector); err == nil {
+			t.Fatalf("selector %s with pseudo-element should not compile", test.selector)
+		}
+
+		doc, err := html.Parse(strings.NewReader(test.HTML))
+		if err != nil {
+			t.Fatalf("error parsing %q: %s", test.HTML, err)
+		}
+
+		body := doc.FirstChild.LastChild
+		testNode := body.FirstChild.FirstChild.LastChild
+		if !s.Match(testNode) {
+			t.Errorf("%s didn't match (html tree : \n %s) \n", test.selector, nodeString(doc))
+			continue
+		}
+		if s.Specificity() != test.spec {
+			t.Errorf("wrong specificity : expected %v got %v", test.spec, s.Specificity())
+		}
+		if s.PseudoElement() != test.pseudo {
+			t.Errorf("wrong pseudo-element : expected %s got %s", test.pseudo, s.PseudoElement())
 		}
 	}
 }
