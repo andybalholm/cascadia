@@ -729,8 +729,9 @@ type testPseudo struct {
 var testsPseudo = []testPseudo{
 	{
 		HTML:     `<html><body><ul><ol><li id="s12" class="red level"></li></ol></ul></body></html>`,
-		selector: "#s12:not(FOO)",
-		spec:     Specificity{1, 0, 1},
+		selector: "#s12:not(FOO)::before",
+		spec:     Specificity{1, 0, 2},
+		pseudo:   "before",
 	},
 	{
 		HTML:     `<html><body><ul><ol><li id="s12" class="red level"></li></ol></ul></body></html>`,
@@ -760,16 +761,30 @@ var testsPseudo = []testPseudo{
 
 func TestPseudoElement(t *testing.T) {
 	for _, test := range testsPseudo {
-		s, doc, err := setupSel(test.selector, test.HTML)
+		sels, err := ParseGroupWithPseudoElements(test.selector)
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("error compiling %q: %s", test.selector, err)
 		}
+		if len(sels) != 1 {
+			t.Fatalf("expected one selector, got %d", len(sels))
+		}
+
+		if _, err = ParseGroup(test.selector); err == nil {
+			t.Fatalf("selector %s with pseudo-element should not compile", test.selector)
+		}
+
+		doc, err := html.Parse(strings.NewReader(test.HTML))
+		if err != nil {
+			t.Fatalf("error parsing %q: %s", test.HTML, err)
+		}
+
 		body := doc.FirstChild.LastChild
 		testNode := body.FirstChild.FirstChild.LastChild
-		if !s.Match(testNode) {
+		if !sels.Match(testNode) {
 			t.Errorf("%s didn't match (html tree : \n %s) \n", test.selector, nodeString(doc))
 			continue
 		}
+		s := sels[0]
 		if s.Specificity() != test.spec {
 			t.Errorf("wrong specificity : expected %v got %v", test.spec, s.Specificity())
 		}

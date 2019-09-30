@@ -16,7 +16,6 @@ type Matcher interface {
 }
 
 // Sel is the interface for all the functionality provided by selectors.
-// It supports CSS specificity and pseudo elements.
 type Sel interface {
 	Matcher
 	Specificity() Specificity
@@ -25,7 +24,8 @@ type Sel interface {
 	PseudoElement() string
 }
 
-// Parse parses a selector.
+// Parse parses a selector. Use `ParseGroupWithPseudoElements`
+// if you need support for pseudo-elements.
 func Parse(sel string) (Sel, error) {
 	p := &parser{s: sel}
 	compiled, err := p.parseSelector()
@@ -41,8 +41,26 @@ func Parse(sel string) (Sel, error) {
 }
 
 // ParseGroup parses a selector, or a group of selectors separated by commas.
+// Use `ParseGroupWithPseudoElements`
+// if you need support for pseudo-elements.
 func ParseGroup(sel string) (SelectorGroup, error) {
 	p := &parser{s: sel}
+	compiled, err := p.parseSelectorGroup()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.i < len(sel) {
+		return nil, fmt.Errorf("parsing %q: %d bytes left over", sel, len(sel)-p.i)
+	}
+
+	return compiled, nil
+}
+
+// ParseGroupWithPseudoElements parses a selector, or a group of selectors separated by commas.
+// It supports pseudo-elements.
+func ParseGroupWithPseudoElements(sel string) (SelectorGroup, error) {
+	p := &parser{s: sel, acceptPseudoElements: true}
 	compiled, err := p.parseSelectorGroup()
 	if err != nil {
 		return nil, err

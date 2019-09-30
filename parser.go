@@ -13,6 +13,10 @@ import (
 type parser struct {
 	s string // the source text
 	i int    // the current position
+
+	// if `false`, parsing a pseudo-element
+	// returns an error.
+	acceptPseudoElements bool
 }
 
 // parseEscape parses a backslash escape.
@@ -724,9 +728,9 @@ func (p *parser) parseSimpleSelectorSequence() (Sel, error) {
 loop:
 	for p.i < len(p.s) {
 		var (
-			ns                   Sel
-			currentPseudoElement string
-			err                  error
+			ns               Sel
+			newPseudoElement string
+			err              error
 		)
 		switch p.s[p.i] {
 		case '#':
@@ -736,7 +740,7 @@ loop:
 		case '[':
 			ns, err = p.parseAttributeSelector()
 		case ':':
-			ns, currentPseudoElement, err = p.parsePseudoclassSelector()
+			ns, newPseudoElement, err = p.parsePseudoclassSelector()
 		default:
 			break loop
 		}
@@ -749,9 +753,12 @@ loop:
 		// represents the subjects of the selector.""
 		if ns == nil { // we found a pseudo-element
 			if pseudoElement != "" {
-				return nil, fmt.Errorf("only one pseudo-element is accepted per selector, got %s and %s", pseudoElement, currentPseudoElement)
+				return nil, fmt.Errorf("only one pseudo-element is accepted per selector, got %s and %s", pseudoElement, newPseudoElement)
 			}
-			pseudoElement = currentPseudoElement
+			if !p.acceptPseudoElements {
+				return nil, fmt.Errorf("pseudo-element %s found, but pseudo-elements support is disabled", newPseudoElement)
+			}
+			pseudoElement = newPseudoElement
 		} else {
 			if pseudoElement != "" {
 				return nil, fmt.Errorf("pseudo-element %s must be at the end of selector", pseudoElement)
