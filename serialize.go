@@ -23,36 +23,75 @@ func (c attrSelector) String() string {
 	val := c.val
 	if c.operation == "#=" {
 		val = c.regexp.String()
+	} else if c.operation != "" {
+		val = fmt.Sprintf(`"%s"`, val)
 	}
-	return fmt.Sprintf("[%s%s%s]", c.key, c.operation, val)
+	return fmt.Sprintf(`[%s%s%s]`, c.key, c.operation, val)
 }
 
 func (c relativePseudoClassSelector) String() string {
-	panic("not yet supported")
+	return fmt.Sprintf(":%s(%s)", c.name, c.match.String())
 }
 func (c containsPseudoClassSelector) String() string {
-	panic("not yet supported")
+	s := "contains"
+	if c.own {
+		s += "Own"
+	}
+	return fmt.Sprintf(`:%s("%s")`, s, c.value)
 }
 func (c regexpPseudoClassSelector) String() string {
-	panic("not yet supported")
+	s := "matches"
+	if c.own {
+		s += "Own"
+	}
+	return fmt.Sprintf(":%s(%s)", s, c.regexp.String())
 }
 func (c nthPseudoClassSelector) String() string {
-	panic("not yet supported")
+	if c.a == 0 && c.b == 1 { // special cases
+		s := ":first-"
+		if c.last {
+			s = ":last-"
+		}
+		if c.ofType {
+			s += "of-type"
+		} else {
+			s += "child"
+		}
+		return s
+	}
+	var name string
+	switch [2]bool{c.last, c.ofType} {
+	case [2]bool{true, true}:
+		name = "nth-last-of-type"
+	case [2]bool{true, false}:
+		name = "nth-last-child"
+	case [2]bool{false, true}:
+		name = "nth-of-type"
+	case [2]bool{false, false}:
+		name = "nth-child"
+	}
+	return fmt.Sprintf(":%s(%dn+%d)", name, c.a, c.b)
 }
 func (c onlyChildPseudoClassSelector) String() string {
-	panic("not yet supported")
+	if c.ofType {
+		return ":only-of-type"
+	}
+	return ":only-child"
 }
 func (c inputPseudoClassSelector) String() string {
-	panic("not yet supported")
+	return ":input"
 }
 func (c emptyElementPseudoClassSelector) String() string {
-	panic("not yet supported")
+	return ":empty"
 }
 func (c rootPseudoClassSelector) String() string {
-	panic("not yet supported")
+	return ":root"
 }
 
 func (c compoundSelector) String() string {
+	if len(c.selectors) == 0 && c.pseudoElement == "" {
+		return "*"
+	}
 	chunks := make([]string, len(c.selectors))
 	for i, sel := range c.selectors {
 		chunks[i] = sel.String()
@@ -67,7 +106,15 @@ func (c compoundSelector) String() string {
 func (c combinedSelector) String() string {
 	start := c.first.String()
 	if c.second != nil {
-		start += fmt.Sprintf("%s %s %s", start, string(c.combinator), c.second.String())
+		start += fmt.Sprintf(" %s %s", string(c.combinator), c.second.String())
 	}
 	return start
+}
+
+func (c SelectorGroup) String() string {
+	ck := make([]string, len(c))
+	for i, s := range c {
+		ck[i] = s.String()
+	}
+	return strings.Join(ck, ", ")
 }
