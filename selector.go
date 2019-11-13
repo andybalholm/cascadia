@@ -20,7 +20,10 @@ type Sel interface {
 	Matcher
 	Specificity() Specificity
 
-	// Return a pseudo-element, or an empty string.
+	// Returns a CSS input compiling to this selector.
+	String() string
+
+	// Returns a pseudo-element, or an empty string.
 	PseudoElement() string
 }
 
