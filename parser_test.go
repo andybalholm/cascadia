@@ -10,6 +10,7 @@ var identifierTests = map[string]string{
 	"-x":            "-x",
 	`r\e9 sumé`:     "résumé",
 	`r\0000e9 sumé`: "résumé",
+	`r\0000e9sumé`:  "résumé",
 	`a\"b`:          `a"b`,
 }
 
@@ -52,6 +53,7 @@ var stringTests = map[string]string{
 	"'x\\\r\nx'":      "xx",
 	`"r\e9 sumé"`:     "résumé",
 	`"r\0000e9 sumé"`: "résumé",
+	`"r\0000e9sumé"`:  "résumé",
 	`"a\"b"`:          `a"b`,
 }
 
