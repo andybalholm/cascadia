@@ -5,11 +5,12 @@ import (
 )
 
 var identifierTests = map[string]string{
-	"x":         "x",
-	"96":        "",
-	"-x":        "-x",
-	`r\e9 sumé`: "résumé",
-	`a\"b`:      `a"b`,
+	"x":             "x",
+	"96":            "",
+	"-x":            "-x",
+	`r\e9 sumé`:     "résumé",
+	`r\0000e9 sumé`: "résumé",
+	`a\"b`:          `a"b`,
 }
 
 func TestParseIdentifier(t *testing.T) {
@@ -45,12 +46,13 @@ func TestParseIdentifier(t *testing.T) {
 }
 
 var stringTests = map[string]string{
-	`"x"`:         "x",
-	`'x'`:         "x",
-	`'x`:          "",
-	"'x\\\r\nx'":  "xx",
-	`"r\e9 sumé"`: "résumé",
-	`"a\"b"`:      `a"b`,
+	`"x"`:             "x",
+	`'x'`:             "x",
+	`'x`:              "",
+	"'x\\\r\nx'":      "xx",
+	`"r\e9 sumé"`:     "résumé",
+	`"r\0000e9 sumé"`: "résumé",
+	`"a\"b"`:          `a"b`,
 }
 
 func TestParseString(t *testing.T) {
