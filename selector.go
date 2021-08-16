@@ -153,6 +153,17 @@ func QueryAll(n *html.Node, m Matcher) []*html.Node {
 	return queryInto(n, m, nil)
 }
 
+// Removes all nodes and their childs by matcher
+func RemoveAll(n *html.Node, m Matcher) {
+	for child := n.FirstChild; child != nil; child = child.NextSibling {
+		if m.Match(child) {
+			child.Parent.RemoveChild(child)
+		} else {
+			RemoveAll(child, m)
+		}
+	}
+}
+
 // Match returns true if the node matches the selector.
 func (s Selector) Match(n *html.Node) bool {
 	return s(n)
