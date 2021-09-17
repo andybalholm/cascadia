@@ -18,7 +18,6 @@ func TestParseIdentifier(t *testing.T) {
 	for source, want := range identifierTests {
 		p := &parser{s: source}
 		got, err := p.parseIdentifier()
-
 		if err != nil {
 			if want == "" {
 				// It was supposed to be an error.
@@ -61,7 +60,6 @@ func TestParseString(t *testing.T) {
 	for source, want := range stringTests {
 		p := &parser{s: source}
 		got, err := p.parseString()
-
 		if err != nil {
 			if want == "" {
 				// It was supposed to be an error.

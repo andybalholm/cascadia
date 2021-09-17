@@ -114,3 +114,14 @@ func TestSpecificity(t *testing.T) {
 		}
 	}
 }
+
+func TestCompareSpecificity(t *testing.T) {
+	s1, s2 := Specificity{1, 1, 0}, Specificity{1, 0, 0}
+	if s1.Less(s2) {
+		t.Fatal()
+	}
+
+	if s1.Less(s1) {
+		t.Fatal()
+	}
+}
