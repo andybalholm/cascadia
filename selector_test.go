@@ -116,6 +116,13 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<address><address title="fooIgnoreCase"><address title="bar">`,
+		`address[title="FoOIgnoRECaSe" i]`,
+		[]string{
+			`<address title="fooIgnoreCase"><address title="bar"></address></address>`,
+		},
+	},
+	{
 		`<address><address title="foo"><address title="bar">`,
 		`address[title!="foo"]`,
 		[]string{

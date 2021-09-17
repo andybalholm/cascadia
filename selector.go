@@ -266,6 +266,7 @@ func (c idSelector) PseudoElement() string {
 type attrSelector struct {
 	key, val, operation string
 	regexp              *regexp.Regexp
+	insensitive         bool
 }
 
 // Matches elements by attribute value.
@@ -274,7 +275,7 @@ func (t attrSelector) Match(n *html.Node) bool {
 	case "":
 		return matchAttribute(n, t.key, func(string) bool { return true })
 	case "=":
-		return matchAttribute(n, t.key, func(s string) bool { return s == t.val })
+		return matchAttribute(n, t.key, func(s string) bool { return matchInsensitiveValue(t.insensitive, s, t.val) })
 	case "!=":
 		return attributeNotEqualMatch(t.key, t.val, n)
 	case "~=":
@@ -292,6 +293,17 @@ func (t attrSelector) Match(n *html.Node) bool {
 		return attributeRegexMatch(t.key, t.regexp, n)
 	default:
 		panic(fmt.Sprintf("unsuported operation : %s", t.operation))
+	}
+}
+
+// matches elements where we ignore (or not) he case of the attribute value
+// the user attribute is the value set by the user to match elements
+// the real attribute is the attribute value found in the code parsed
+func matchInsensitiveValue(insensitive bool, userAttr string, realAttr string) bool {
+	if insensitive == true {
+		return strings.EqualFold(userAttr, realAttr)
+	} else {
+		return userAttr == realAttr
 	}
 }
 
