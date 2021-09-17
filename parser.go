@@ -405,10 +405,10 @@ func (p *parser) parseAttributeSelector() (attrSelector, error) {
 		return attrSelector{}, err
 	}
 
-	insensitive := false
+	ignoreCase := false
 	if p.s[p.i] == ' ' && p.s[p.i+1] == 'i' {
 		p.i += 2
-		insensitive = true
+		ignoreCase = true
 	}
 
 	p.skipWhitespace()
@@ -423,7 +423,7 @@ func (p *parser) parseAttributeSelector() (attrSelector, error) {
 
 	switch op {
 	case "=", "!=", "~=", "|=", "^=", "$=", "*=", "#=":
-		return attrSelector{key: key, val: val, operation: op, regexp: rx, insensitive: insensitive}, nil
+		return attrSelector{key: key, val: val, operation: op, regexp: rx, insensitive: ignoreCase}, nil
 	default:
 		return attrSelector{}, fmt.Errorf("attribute operator %q is not supported", op)
 	}

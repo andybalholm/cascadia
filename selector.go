@@ -296,11 +296,11 @@ func (t attrSelector) Match(n *html.Node) bool {
 	}
 }
 
-// matches elements where we ignore (or not) he case of the attribute value
+// matches elements where we ignore (or not) the case of the attribute value
 // the user attribute is the value set by the user to match elements
 // the real attribute is the attribute value found in the code parsed
-func matchInsensitiveValue(insensitive bool, userAttr string, realAttr string) bool {
-	if insensitive == true {
+func matchInsensitiveValue(ignoreCase bool, userAttr string, realAttr string) bool {
+	if ignoreCase {
 		return strings.EqualFold(userAttr, realAttr)
 	} else {
 		return userAttr == realAttr

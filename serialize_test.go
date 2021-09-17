@@ -28,6 +28,7 @@ func TestSerialize(t *testing.T) {
 		if err != nil {
 			t.Fatalf("error compiling %q: %s %T (original : %s)", serialized, err, s, test)
 		}
+
 		if !reflect.DeepEqual(s, s2) {
 			t.Fatalf("can't retrieve selector from serialized : %s (original : %s, sel : %#v)", serialized, test, s)
 		}
