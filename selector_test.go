@@ -199,6 +199,13 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<p title="HELLO world">`,
+		`[title~="hello"          I]`,
+		[]string{
+			`<p title="HELLO world"></p>`,
+		},
+	},
+	{
 		`<p lang="en"><p lang="en-gb"><p lang="enough"><p lang="fr-en">`,
 		`[lang|="en"]`,
 		[]string{
@@ -209,6 +216,14 @@ var selectorTests = []selectorTest{
 	{
 		`<p lang="en"><p lang="En-gb"><p lang="enough"><p lang="fr-en">`,
 		`[lang|="EN" i]`,
+		[]string{
+			`<p lang="en"></p>`,
+			`<p lang="En-gb"></p>`,
+		},
+	},
+	{
+		`<p lang="en"><p lang="En-gb"><p lang="enough"><p lang="fr-en">`,
+		`[lang|="EN"     i]`,
 		[]string{
 			`<p lang="en"></p>`,
 			`<p lang="En-gb"></p>`,
@@ -252,6 +267,13 @@ var selectorTests = []selectorTest{
 	{
 		`<p title="foobarufoo">`,
 		`[title*="BaRu" i]`,
+		[]string{
+			`<p title="foobarufoo"></p>`,
+		},
+	},
+	{
+		`<p title="foobarufoo">`,
+		`[title*="BaRu" I]`,
 		[]string{
 			`<p title="foobarufoo"></p>`,
 		},

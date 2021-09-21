@@ -405,16 +405,16 @@ func (p *parser) parseAttributeSelector() (attrSelector, error) {
 		return attrSelector{}, err
 	}
 
-	// check if the attribute contains an ignore case flag
-	ignoreCase := false
-	if p.s[p.i] == ' ' && p.s[p.i+1] == 'i' {
-		p.i += 2
-		ignoreCase = true
-	}
-
 	p.skipWhitespace()
 	if p.i >= len(p.s) {
 		return attrSelector{}, errors.New("unexpected EOF in attribute selector")
+	}
+
+	// check if the attribute contains an ignore case flag
+	ignoreCase := false
+	if strings.EqualFold(string(p.s[p.i]), "i") && p.s[p.i-1] == ' ' {
+		ignoreCase = true
+		p.i++
 	}
 
 	if p.s[p.i] != ']' {
