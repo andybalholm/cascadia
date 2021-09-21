@@ -405,6 +405,7 @@ func (p *parser) parseAttributeSelector() (attrSelector, error) {
 		return attrSelector{}, err
 	}
 
+	// check if the attribute contains an ignore case flag
 	ignoreCase := false
 	if p.s[p.i] == ' ' && p.s[p.i+1] == 'i' {
 		p.i += 2

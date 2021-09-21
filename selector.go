@@ -231,7 +231,7 @@ type classSelector struct {
 // Matches elements by class attribute.
 func (t classSelector) Match(n *html.Node) bool {
 	return matchAttribute(n, "class", func(s string) bool {
-		return matchInclude(t.class, s)
+		return matchInclude(t.class, s, false)
 	})
 }
 
@@ -274,20 +274,20 @@ func (t attrSelector) Match(n *html.Node) bool {
 	case "":
 		return matchAttribute(n, t.key, func(string) bool { return true })
 	case "=":
-		return matchAttribute(n, t.key, func(s string) bool { return matchInsensitiveValue(t.insensitive, s, t.val) })
+		return matchAttribute(n, t.key, func(s string) bool { return matchInsensitiveValue(s, t.val, t.insensitive) })
 	case "!=":
-		return attributeNotEqualMatch(t.key, t.val, n)
+		return attributeNotEqualMatch(t.key, t.val, n, t.insensitive)
 	case "~=":
 		// matches elements where the attribute named key is a whitespace-separated list that includes val.
-		return matchAttribute(n, t.key, func(s string) bool { return matchInclude(t.val, s) })
+		return matchAttribute(n, t.key, func(s string) bool { return matchInclude(t.val, s, t.insensitive) })
 	case "|=":
-		return attributeDashMatch(t.key, t.val, n)
+		return attributeDashMatch(t.key, t.val, n, t.insensitive)
 	case "^=":
-		return attributePrefixMatch(t.key, t.val, n)
+		return attributePrefixMatch(t.key, t.val, n, t.insensitive)
 	case "$=":
-		return attributeSuffixMatch(t.key, t.val, n)
+		return attributeSuffixMatch(t.key, t.val, n, t.insensitive)
 	case "*=":
-		return attributeSubstringMatch(t.key, t.val, n)
+		return attributeSubstringMatch(t.key, t.val, n, t.insensitive)
 	case "#=":
 		return attributeRegexMatch(t.key, t.regexp, n)
 	default:
@@ -298,12 +298,12 @@ func (t attrSelector) Match(n *html.Node) bool {
 // matches elements where we ignore (or not) the case of the attribute value
 // the user attribute is the value set by the user to match elements
 // the real attribute is the attribute value found in the code parsed
-func matchInsensitiveValue(ignoreCase bool, userAttr string, realAttr string) bool {
+func matchInsensitiveValue(userAttr string, realAttr string, ignoreCase bool) bool {
 	if ignoreCase {
 		return strings.EqualFold(userAttr, realAttr)
-	} else {
-		return userAttr == realAttr
 	}
+	return userAttr == realAttr
+
 }
 
 // matches elements where the attribute named key satisifes the function f.
@@ -321,12 +321,12 @@ func matchAttribute(n *html.Node, key string, f func(string) bool) bool {
 
 // attributeNotEqualMatch matches elements where
 // the attribute named key does not have the value val.
-func attributeNotEqualMatch(key, val string, n *html.Node) bool {
+func attributeNotEqualMatch(key, val string, n *html.Node, ignoreCase bool) bool {
 	if n.Type != html.ElementNode {
 		return false
 	}
 	for _, a := range n.Attr {
-		if a.Key == key && a.Val == val {
+		if a.Key == key && matchInsensitiveValue(a.Val, val, ignoreCase) {
 			return false
 		}
 	}
@@ -334,13 +334,13 @@ func attributeNotEqualMatch(key, val string, n *html.Node) bool {
 }
 
 // returns true if s is a whitespace-separated list that includes val.
-func matchInclude(val, s string) bool {
+func matchInclude(val string, s string, ignoreCase bool) bool {
 	for s != "" {
 		i := strings.IndexAny(s, " \t\r\n\f")
 		if i == -1 {
-			return s == val
+			return matchInsensitiveValue(s, val, ignoreCase)
 		}
-		if s[:i] == val {
+		if matchInsensitiveValue(s[:i], val, ignoreCase) {
 			return true
 		}
 		s = s[i+1:]
@@ -349,16 +349,16 @@ func matchInclude(val, s string) bool {
 }
 
 //  matches elements where the attribute named key equals val or starts with val plus a hyphen.
-func attributeDashMatch(key, val string, n *html.Node) bool {
+func attributeDashMatch(key, val string, n *html.Node, ignoreCase bool) bool {
 	return matchAttribute(n, key,
 		func(s string) bool {
-			if s == val {
+			if matchInsensitiveValue(s, val, ignoreCase) {
 				return true
 			}
 			if len(s) <= len(val) {
 				return false
 			}
-			if s[:len(val)] == val && s[len(val)] == '-' {
+			if matchInsensitiveValue(s[:len(val)], val, ignoreCase) && s[len(val)] == '-' {
 				return true
 			}
 			return false
@@ -367,11 +367,14 @@ func attributeDashMatch(key, val string, n *html.Node) bool {
 
 // attributePrefixMatch returns a Selector that matches elements where
 // the attribute named key starts with val.
-func attributePrefixMatch(key, val string, n *html.Node) bool {
+func attributePrefixMatch(key, val string, n *html.Node, ignoreCase bool) bool {
 	return matchAttribute(n, key,
 		func(s string) bool {
 			if strings.TrimSpace(s) == "" {
 				return false
+			}
+			if ignoreCase {
+				return strings.HasPrefix(strings.ToLower(s), strings.ToLower(val))
 			}
 			return strings.HasPrefix(s, val)
 		})
@@ -379,11 +382,14 @@ func attributePrefixMatch(key, val string, n *html.Node) bool {
 
 // attributeSuffixMatch matches elements where
 // the attribute named key ends with val.
-func attributeSuffixMatch(key, val string, n *html.Node) bool {
+func attributeSuffixMatch(key, val string, n *html.Node, ignoreCase bool) bool {
 	return matchAttribute(n, key,
 		func(s string) bool {
 			if strings.TrimSpace(s) == "" {
 				return false
+			}
+			if ignoreCase {
+				return strings.HasSuffix(strings.ToLower(s), strings.ToLower(val))
 			}
 			return strings.HasSuffix(s, val)
 		})
@@ -391,11 +397,14 @@ func attributeSuffixMatch(key, val string, n *html.Node) bool {
 
 // attributeSubstringMatch matches nodes where
 // the attribute named key contains val.
-func attributeSubstringMatch(key, val string, n *html.Node) bool {
+func attributeSubstringMatch(key, val string, n *html.Node, ignoreCase bool) bool {
 	return matchAttribute(n, key,
 		func(s string) bool {
 			if strings.TrimSpace(s) == "" {
 				return false
+			}
+			if ignoreCase {
+				return strings.Contains(strings.ToLower(s), strings.ToLower(val))
 			}
 			return strings.Contains(s, val)
 		})
