@@ -412,7 +412,7 @@ func (p *parser) parseAttributeSelector() (attrSelector, error) {
 
 	// check if the attribute contains an ignore case flag
 	ignoreCase := false
-	if p.s[p.i] == 'i' || p.s[p.i] == 'I' && p.s[p.i-1] == ' ' {
+	if p.s[p.i] == 'i' || p.s[p.i] == 'I' {
 		ignoreCase = true
 		p.i++
 	}
