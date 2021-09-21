@@ -124,10 +124,24 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<div><div class="Red">`,
+		`div[class="red" i]`,
+		[]string{
+			`<div class="Red"></div>`,
+		},
+	},
+	{
 		`<address><address title="foo"><address title="bar">`,
 		`address[title="foo"]`,
 		[]string{
 			`<address title="foo"><address title="bar"></address></address>`,
+		},
+	},
+	{
+		`<address><address title="fooIgnoreCase"><address title="bar">`,
+		`address[title="FoOIgnoRECaSe" i]`,
+		[]string{
+			`<address title="fooIgnoreCase"><address title="bar"></address></address>`,
 		},
 	},
 	{
@@ -139,6 +153,21 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<address><address title="FOO"><address title="bar">`,
+		`address[title!="foo" i]`,
+		[]string{
+			`<address><address title="FOO"><address title="bar"></address></address></address>`,
+			`<address title="bar"></address>`,
+		},
+	},
+	{
+		`<p title="fooBARuFOO"><p title="varfoo">`,
+		`p[title!="FooBarUFoo" i]`,
+		[]string{
+			`<p title="varfoo"></p>`,
+		},
+	},
+	{
 		`<p title="tot foo bar">`,
 		`[    	title        ~=       foo    ]`,
 		[]string{
@@ -146,9 +175,35 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<p title="tot foo bar">`,
+		`p[title~="FOO" i]`,
+		[]string{
+			`<p title="tot foo bar"></p>`,
+		},
+	},
+	{
+		`<p title="tot foo bar">`,
+		`p[title~=toofoo i]`,
+		[]string{},
+	},
+	{
 		`<p title="hello world">`,
 		`[title~="hello world"]`,
 		[]string{},
+	},
+	{
+		`<p title="HELLO world">`,
+		`[title~="hello" i]`,
+		[]string{
+			`<p title="HELLO world"></p>`,
+		},
+	},
+	{
+		`<p title="HELLO world">`,
+		`[title~="hello"          I]`,
+		[]string{
+			`<p title="HELLO world"></p>`,
+		},
 	},
 	{
 		`<p lang="en"><p lang="en-gb"><p lang="enough"><p lang="fr-en">`,
@@ -159,10 +214,33 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<p lang="en"><p lang="En-gb"><p lang="enough"><p lang="fr-en">`,
+		`[lang|="EN" i]`,
+		[]string{
+			`<p lang="en"></p>`,
+			`<p lang="En-gb"></p>`,
+		},
+	},
+	{
+		`<p lang="en"><p lang="En-gb"><p lang="enough"><p lang="fr-en">`,
+		`[lang|="EN"     i]`,
+		[]string{
+			`<p lang="en"></p>`,
+			`<p lang="En-gb"></p>`,
+		},
+	},
+	{
 		`<p title="foobar"><p title="barfoo">`,
 		`[title^="foo"]`,
 		[]string{
 			`<p title="foobar"></p>`,
+		},
+	},
+	{
+		`<p title="FooBAR"><p title="barfoo">`,
+		`[title^="foo" i]`,
+		[]string{
+			`<p title="FooBAR"></p>`,
 		},
 	},
 	{
@@ -173,8 +251,29 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<p title="foobar"><p title="barfoo">`,
+		`[title$="BAR" i]`,
+		[]string{
+			`<p title="foobar"></p>`,
+		},
+	},
+	{
 		`<p title="foobarufoo">`,
 		`[title*="bar"]`,
+		[]string{
+			`<p title="foobarufoo"></p>`,
+		},
+	},
+	{
+		`<p title="foobarufoo">`,
+		`[title*="BaRu" i]`,
+		[]string{
+			`<p title="foobarufoo"></p>`,
+		},
+	},
+	{
+		`<p title="foobarufoo">`,
+		`[title*="BaRu" I]`,
 		[]string{
 			`<p title="foobarufoo"></p>`,
 		},

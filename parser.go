@@ -409,6 +409,14 @@ func (p *parser) parseAttributeSelector() (attrSelector, error) {
 	if p.i >= len(p.s) {
 		return attrSelector{}, errors.New("unexpected EOF in attribute selector")
 	}
+
+	// check if the attribute contains an ignore case flag
+	ignoreCase := false
+	if p.s[p.i] == 'i' || p.s[p.i] == 'I' {
+		ignoreCase = true
+		p.i++
+	}
+
 	if p.s[p.i] != ']' {
 		return attrSelector{}, fmt.Errorf("expected ']', found '%c' instead", p.s[p.i])
 	}
@@ -416,7 +424,7 @@ func (p *parser) parseAttributeSelector() (attrSelector, error) {
 
 	switch op {
 	case "=", "!=", "~=", "|=", "^=", "$=", "*=", "#=":
-		return attrSelector{key: key, val: val, operation: op, regexp: rx}, nil
+		return attrSelector{key: key, val: val, operation: op, regexp: rx, insensitive: ignoreCase}, nil
 	default:
 		return attrSelector{}, fmt.Errorf("attribute operator %q is not supported", op)
 	}
