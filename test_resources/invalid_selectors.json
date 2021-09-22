@@ -32,5 +32,6 @@
 	{"name": "Undeclared namespace",         "selector": "ns|div"},
 	{"name": "Undeclared namespace",         "selector": ":not(ns|div)"},
 	{"name": "Invalid namespace",            "selector": "^|div"},
-	{"name": "Invalid namespace",            "selector": "$|div"}
+	{"name": "Invalid namespace",            "selector": "$|div"},
+	{"name": "Case insensitive, no closing ]", "selector": "[a=a i"}
 ]
