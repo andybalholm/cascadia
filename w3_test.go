@@ -12,7 +12,7 @@ import (
 )
 
 func TestInvalidSelectors(t *testing.T) {
-	c, err := ioutil.ReadFile("test_ressources/invalid_selectors.json")
+	c, err := ioutil.ReadFile("test_resources/invalid_selectors.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func isEqual(m map[string]int, l []string) bool {
 }
 
 func loadValidSelectors(t *testing.T) []validSelector {
-	c, err := ioutil.ReadFile("test_ressources/valid_selectors.json")
+	c, err := ioutil.ReadFile("test_resources/valid_selectors.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func loadValidSelectors(t *testing.T) []validSelector {
 
 func TestValidSelectors(t *testing.T) {
 	tests := loadValidSelectors(t)
-	doc := parseReference("test_ressources/content.xhtml")
+	doc := parseReference("test_resources/content.xhtml")
 	for i, test := range tests {
 		if test.Xfail {
 			t.Logf("skiped test %s", test.Name)

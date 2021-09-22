@@ -16,7 +16,7 @@ import (
 var validSelectors []validSelector
 
 func init() {
-	c, err := ioutil.ReadFile("test_ressources/valid_selectors.json")
+	c, err := ioutil.ReadFile("test_resources/valid_selectors.json")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -943,7 +943,7 @@ type validSelector struct {
 }
 
 func TestShakespeare(t *testing.T) {
-	doc := parseReference("test_ressources/shakespeare.html")
+	doc := parseReference("test_resources/shakespeare.html")
 	body := doc.FirstChild.NextSibling.LastChild
 	assertCount := func(selector string, expected int) {
 		sel, err := ParseGroup(selector)
