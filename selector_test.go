@@ -713,13 +713,24 @@ var selectorTests = []selectorTest{
 	},
 	{
 		`<html><head></head><body></body></html>`,
+		"html:nth-child(1)",
+		[]string{
+			"<html><head></head><body></body></html>",
+		},
+	},
+	{
+		`<html><head></head><body></body></html>`,
 		"*:root:first-child",
-		[]string{},
+		[]string{
+			`<html><head></head><body></body></html>`,
+		},
 	},
 	{
 		`<html><head></head><body></body></html>`,
 		"*:root:nth-child(1)",
-		[]string{},
+		[]string{
+			`<html><head></head><body></body></html>`,
+		},
 	},
 	{
 		`<html><head></head><body><a href="http://www.foo.com"></a></body></html>`,
