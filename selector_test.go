@@ -117,6 +117,20 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<p class="--t1 --t2">`,
+		"p.--t1",
+		[]string{
+			`<p class="--t1 --t2"></p>`,
+		},
+	},
+	{
+		`<p class="--t1 --t2">`,
+		"p.--t1.--t2",
+		[]string{
+			`<p class="--t1 --t2"></p>`,
+		},
+	},
+	{
 		`<p><p title="title">`,
 		"p[title]",
 		[]string{
