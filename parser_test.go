@@ -17,7 +17,7 @@ var identifierTests = map[string]string{
 func TestParseIdentifier(t *testing.T) {
 	for source, want := range identifierTests {
 		p := &parser{s: source}
-		got, err := p.parseIdentifier()
+		got, err := p.parseIdentifier(nil)
 		if err != nil {
 			if want == "" {
 				// It was supposed to be an error.

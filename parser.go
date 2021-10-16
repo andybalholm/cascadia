@@ -19,6 +19,9 @@ type parser struct {
 	acceptPseudoElements bool
 }
 
+// parsePrefixFunc creates a function that parses a prefix.
+type parsePrefixFunc func() (int, string)
+
 // parseEscape parses a backslash escape.
 func (p *parser) parseEscape() (result string, err error) {
 	if len(p.s) < p.i+2 || p.s[p.i] != '\\' {
@@ -95,12 +98,41 @@ func nameChar(c byte) bool {
 		c == '-' || '0' <= c && c <= '9'
 }
 
+//parseClassPrefix returns a prefix parsing func that allows multiple dashes as prefix.
+func (p *parser) parseClassPrefix() parsePrefixFunc {
+	return p.parsePrefix('-', 2)
+}
+
+//parseClassPrefix returns a prefix parsing func that allows 1 dashes as prefix.
+func (p *parser) parseDefaultPrefix() parsePrefixFunc {
+	return p.parsePrefix('-', 1)
+}
+
+// parsePrefix parses a prefix and returns the prefix length.
+func (p *parser) parsePrefix(prefix uint8, maxPrefix int) parsePrefixFunc {
+	return func() (int, string) {
+		var numPrefix int
+
+	countPrefix:
+		if len(p.s) > p.i && p.s[p.i] == prefix && numPrefix < maxPrefix {
+			p.i++
+			numPrefix++
+			goto countPrefix
+		}
+
+		return numPrefix, string(prefix)
+	}
+}
+
 // parseIdentifier parses an identifier.
-func (p *parser) parseIdentifier() (result string, err error) {
-	startingDash := false
-	if len(p.s) > p.i && p.s[p.i] == '-' {
-		startingDash = true
-		p.i++
+func (p *parser) parseIdentifier(parsePrefix parsePrefixFunc) (result string, err error) {
+	var numPrefix int
+	var prefix string
+
+	if parsePrefix != nil {
+		numPrefix, prefix = parsePrefix()
+	} else {
+		numPrefix, prefix = p.parseDefaultPrefix()()
 	}
 
 	if len(p.s) <= p.i {
@@ -112,8 +144,8 @@ func (p *parser) parseIdentifier() (result string, err error) {
 	}
 
 	result, err = p.parseName()
-	if startingDash && err == nil {
-		result = "-" + result
+	if numPrefix > 0 && err == nil {
+		result = strings.Repeat(string(prefix), numPrefix) + result
 	}
 	return
 }
@@ -303,7 +335,7 @@ func (p *parser) consumeClosingParenthesis() bool {
 
 // parseTypeSelector parses a type selector (one that matches by tag name).
 func (p *parser) parseTypeSelector() (result tagSelector, err error) {
-	tag, err := p.parseIdentifier()
+	tag, err := p.parseIdentifier(nil)
 	if err != nil {
 		return
 	}
@@ -338,7 +370,7 @@ func (p *parser) parseClassSelector() (classSelector, error) {
 	}
 
 	p.i++
-	class, err := p.parseIdentifier()
+	class, err := p.parseIdentifier(p.parseClassPrefix())
 	if err != nil {
 		return classSelector{}, err
 	}
@@ -357,7 +389,7 @@ func (p *parser) parseAttributeSelector() (attrSelector, error) {
 
 	p.i++
 	p.skipWhitespace()
-	key, err := p.parseIdentifier()
+	key, err := p.parseIdentifier(nil)
 	if err != nil {
 		return attrSelector{}, err
 	}
@@ -398,7 +430,7 @@ func (p *parser) parseAttributeSelector() (attrSelector, error) {
 		case '\'', '"':
 			val, err = p.parseString()
 		default:
-			val, err = p.parseIdentifier()
+			val, err = p.parseIdentifier(nil)
 		}
 	}
 	if err != nil {
@@ -463,7 +495,7 @@ func (p *parser) parsePseudoclassSelector() (out Sel, pseudoElement string, err 
 		p.i++
 	}
 
-	name, err := p.parseIdentifier()
+	name, err := p.parseIdentifier(nil)
 	if err != nil {
 		return
 	}
@@ -501,7 +533,7 @@ func (p *parser) parsePseudoclassSelector() (out Sel, pseudoElement string, err 
 		case '\'', '"':
 			val, err = p.parseString()
 		default:
-			val, err = p.parseIdentifier()
+			val, err = p.parseIdentifier(nil)
 		}
 		if err != nil {
 			return out, "", err
@@ -576,7 +608,7 @@ func (p *parser) parsePseudoclassSelector() (out Sel, pseudoElement string, err 
 		if p.i == len(p.s) {
 			return out, "", errUnmatchedParenthesis
 		}
-		val, err := p.parseIdentifier()
+		val, err := p.parseIdentifier(nil)
 		if err != nil {
 			return out, "", err
 		}
