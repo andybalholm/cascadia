@@ -100,11 +100,9 @@ func (p *parser) parseIdentifier() (result string, err error) {
 	const prefix = '-'
 	var numPrefix int
 
-countPrefix:
-	if len(p.s) > p.i && p.s[p.i] == prefix {
+	for len(p.s) > p.i && p.s[p.i] == prefix {
 		p.i++
 		numPrefix++
-		goto countPrefix
 	}
 
 	if len(p.s) <= p.i {
