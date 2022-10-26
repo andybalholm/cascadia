@@ -782,6 +782,14 @@ var selectorTests = []selectorTest{
 			`<fieldset></fieldset>`,
 		},
 	},
+	{
+		`<div class=class1></div><div class=class2></div><div class=class3></div>`,
+		"div.class1, div.class2",
+		[]string{
+			`<div class="class1"></div>`,
+			`<div class="class2"></div>`,
+		},
+	},
 }
 
 func setup(selector, testHTML string) (Selector, *html.Node, error) {
