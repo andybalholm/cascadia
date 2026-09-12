@@ -1034,3 +1034,22 @@ func TestShakespeare(t *testing.T) {
 	assertCount("div[class|=dialog]", 50)
 	assertCount("div[class~=dialog]", 51)
 }
+
+func TestEmptyAttributeSelectorValues(t *testing.T) {
+	for _, op := range []string{"^=", "$=", "*=", "~="} {
+		for _, flag := range []string{"", " i"} {
+			selector, err := Parse(`[data` + op + `""` + flag + `]`)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, value := range []string{"", "text", " text ", " ", "\ttext"} {
+				t.Run(fmt.Sprintf("%s%s/%q", op, flag, value), func(t *testing.T) {
+					node := &html.Node{Type: html.ElementNode, Data: "p", Attr: []html.Attribute{{Key: "data", Val: value}}}
+					if selector.Match(node) {
+						t.Errorf("empty selector value matched attribute %q", value)
+					}
+				})
+			}
+		}
+	}
+}

@@ -335,6 +335,9 @@ func attributeNotEqualMatch(key, val string, n *html.Node, ignoreCase bool) bool
 
 // returns true if s is a whitespace-separated list that includes val.
 func matchInclude(val string, s string, ignoreCase bool) bool {
+	if val == "" {
+		return false
+	}
 	for s != "" {
 		i := strings.IndexAny(s, " \t\r\n\f")
 		if i == -1 {
@@ -348,7 +351,7 @@ func matchInclude(val string, s string, ignoreCase bool) bool {
 	return false
 }
 
-//  matches elements where the attribute named key equals val or starts with val plus a hyphen.
+// matches elements where the attribute named key equals val or starts with val plus a hyphen.
 func attributeDashMatch(key, val string, n *html.Node, ignoreCase bool) bool {
 	return matchAttribute(n, key,
 		func(s string) bool {
@@ -368,6 +371,9 @@ func attributeDashMatch(key, val string, n *html.Node, ignoreCase bool) bool {
 // attributePrefixMatch returns a Selector that matches elements where
 // the attribute named key starts with val.
 func attributePrefixMatch(key, val string, n *html.Node, ignoreCase bool) bool {
+	if val == "" {
+		return false
+	}
 	return matchAttribute(n, key,
 		func(s string) bool {
 			if strings.TrimSpace(s) == "" {
@@ -383,6 +389,9 @@ func attributePrefixMatch(key, val string, n *html.Node, ignoreCase bool) bool {
 // attributeSuffixMatch matches elements where
 // the attribute named key ends with val.
 func attributeSuffixMatch(key, val string, n *html.Node, ignoreCase bool) bool {
+	if val == "" {
+		return false
+	}
 	return matchAttribute(n, key,
 		func(s string) bool {
 			if strings.TrimSpace(s) == "" {
@@ -398,6 +407,9 @@ func attributeSuffixMatch(key, val string, n *html.Node, ignoreCase bool) bool {
 // attributeSubstringMatch matches nodes where
 // the attribute named key contains val.
 func attributeSubstringMatch(key, val string, n *html.Node, ignoreCase bool) bool {
+	if val == "" {
+		return false
+	}
 	return matchAttribute(n, key,
 		func(s string) bool {
 			if strings.TrimSpace(s) == "" {
