@@ -32,9 +32,8 @@ type relativeSelector struct {
 }
 
 type relativePseudoClassSelector struct {
-	name  string // one of "not", "has", "haschild"
-	match SelectorGroup
-	rels  []relativeSelector
+	name string // one of "has", "haschild"
+	rels []relativeSelector
 }
 
 func (s relativePseudoClassSelector) Match(n *html.Node) bool {
@@ -42,9 +41,6 @@ func (s relativePseudoClassSelector) Match(n *html.Node) bool {
 		return false
 	}
 	switch s.name {
-	case "not":
-		// matches elements that do not match a.
-		return !s.match.Match(n)
 	case "has", "haschild":
 		for _, r := range s.rels {
 			comb := r.combinator
@@ -120,15 +116,36 @@ func hasDescendantMatch(n *html.Node, a SelectorGroup) bool {
 // See https://www.w3.org/TR/selectors/#specificity-rules
 func (s relativePseudoClassSelector) Specificity() Specificity {
 	var max Specificity
-	if len(s.rels) > 0 {
-		for _, r := range s.rels {
-			newSpe := r.sel.Specificity()
-			if max.Less(newSpe) {
-				max = newSpe
-			}
+	for _, r := range s.rels {
+		newSpe := r.sel.Specificity()
+		if max.Less(newSpe) {
+			max = newSpe
 		}
-		return max
 	}
+
+	return max
+}
+
+func (c relativePseudoClassSelector) PseudoElement() string {
+	return ""
+}
+
+// notPseudoClassSelector implements the :not pseudoclass.
+type notPseudoClassSelector struct {
+	match SelectorGroup
+}
+
+func (s notPseudoClassSelector) Match(n *html.Node) bool {
+	if n.Type != html.ElementNode {
+		return false
+	}
+	// matches elements that do not match a.
+	return !s.match.Match(n)
+}
+
+func (s notPseudoClassSelector) Specificity() Specificity {
+	var max Specificity
+
 	for _, sel := range s.match {
 		newSpe := sel.Specificity()
 		if max.Less(newSpe) {
@@ -138,7 +155,7 @@ func (s relativePseudoClassSelector) Specificity() Specificity {
 	return max
 }
 
-func (c relativePseudoClassSelector) PseudoElement() string {
+func (c notPseudoClassSelector) PseudoElement() string {
 	return ""
 }
 

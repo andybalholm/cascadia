@@ -490,7 +490,7 @@ func (p *parser) parsePseudoclassSelector() (out Sel, pseudoElement string, err 
 			return out, "", errExpectedClosingParenthesis
 		}
 
-		out = relativePseudoClassSelector{name: name, match: sel}
+		out = notPseudoClassSelector{match: sel}
 
 	case "has", "haschild":
 		if !p.consumeParenthesis() {

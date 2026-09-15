@@ -51,18 +51,19 @@ func (c attrSelector) String() string {
 }
 
 func (c relativePseudoClassSelector) String() string {
-	if len(c.rels) > 0 {
-		parts := make([]string, len(c.rels))
-		for i, r := range c.rels {
-			if r.combinator != 0 {
-				parts[i] = fmt.Sprintf("%s %s", string(r.combinator), r.sel.String())
-			} else {
-				parts[i] = r.sel.String()
-			}
+	parts := make([]string, len(c.rels))
+	for i, r := range c.rels {
+		if r.combinator != 0 {
+			parts[i] = fmt.Sprintf("%s %s", string(r.combinator), r.sel.String())
+		} else {
+			parts[i] = r.sel.String()
 		}
-		return fmt.Sprintf(":%s(%s)", c.name, strings.Join(parts, ", "))
 	}
-	return fmt.Sprintf(":%s(%s)", c.name, c.match.String())
+	return fmt.Sprintf(":%s(%s)", c.name, strings.Join(parts, ", "))
+}
+
+func (c notPseudoClassSelector) String() string {
+	return fmt.Sprintf(":not(%s)", c.match.String())
 }
 
 func (c containsPseudoClassSelector) String() string {
