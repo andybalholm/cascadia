@@ -23,9 +23,18 @@ func (c abstractPseudoClass) PseudoElement() string {
 	return ""
 }
 
+// relativeSelector is a selector that may start with a combinator, as used
+// inside :has() / :haschild(). combinator 0 means the implicit combinator
+// for that pseudo-class (descendant for :has, child for :haschild).
+type relativeSelector struct {
+	combinator byte
+	sel        Sel
+}
+
 type relativePseudoClassSelector struct {
 	name  string // one of "not", "has", "haschild"
 	match SelectorGroup
+	rels  []relativeSelector
 }
 
 func (s relativePseudoClassSelector) Match(n *html.Node) bool {
@@ -36,14 +45,51 @@ func (s relativePseudoClassSelector) Match(n *html.Node) bool {
 	case "not":
 		// matches elements that do not match a.
 		return !s.match.Match(n)
-	case "has":
-		//  matches elements with any descendant that matches a.
-		return hasDescendantMatch(n, s.match)
-	case "haschild":
-		// matches elements with a child that matches a.
-		return hasChildMatch(n, s.match)
+	case "has", "haschild":
+		for _, r := range s.rels {
+			comb := r.combinator
+			if comb == 0 {
+				if s.name == "haschild" {
+					comb = '>'
+				} else {
+					comb = ' '
+				}
+			}
+			if relativeMatch(n, comb, r.sel) {
+				return true
+			}
+		}
+		return false
 	default:
 		panic(fmt.Sprintf("unsupported relative pseudo class selector : %s", s.name))
+	}
+}
+
+// relativeMatch reports whether n matches a relative selector with the given
+// combinator, i.e. whether walking from n via combinator finds a node matching sel.
+func relativeMatch(n *html.Node, combinator byte, sel Sel) bool {
+	sg := SelectorGroup{sel}
+	switch combinator {
+	case ' ':
+		return hasDescendantMatch(n, sg)
+	case '>':
+		return hasChildMatch(n, sg)
+	case '+':
+		for c := n.NextSibling; c != nil; c = c.NextSibling {
+			if c.Type == html.ElementNode {
+				return sg.Match(c)
+			}
+		}
+		return false
+	case '~':
+		for c := n.NextSibling; c != nil; c = c.NextSibling {
+			if c.Type == html.ElementNode && sg.Match(c) {
+				return true
+			}
+		}
+		return false
+	default:
+		return false
 	}
 }
 
@@ -74,6 +120,15 @@ func hasDescendantMatch(n *html.Node, a SelectorGroup) bool {
 // See https://www.w3.org/TR/selectors/#specificity-rules
 func (s relativePseudoClassSelector) Specificity() Specificity {
 	var max Specificity
+	if len(s.rels) > 0 {
+		for _, r := range s.rels {
+			newSpe := r.sel.Specificity()
+			if max.Less(newSpe) {
+				max = newSpe
+			}
+		}
+		return max
+	}
 	for _, sel := range s.match {
 		newSpe := sel.Specificity()
 		if max.Less(newSpe) {

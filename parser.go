@@ -478,7 +478,7 @@ func (p *parser) parsePseudoclassSelector() (out Sel, pseudoElement string, err 
 	}
 
 	switch name {
-	case "not", "has", "haschild":
+	case "not":
 		if !p.consumeParenthesis() {
 			return out, "", errExpectedParenthesis
 		}
@@ -491,6 +491,20 @@ func (p *parser) parsePseudoclassSelector() (out Sel, pseudoElement string, err 
 		}
 
 		out = relativePseudoClassSelector{name: name, match: sel}
+
+	case "has", "haschild":
+		if !p.consumeParenthesis() {
+			return out, "", errExpectedParenthesis
+		}
+		rels, parseErr := p.parseRelativeSelectorGroup()
+		if parseErr != nil {
+			return out, "", parseErr
+		}
+		if !p.consumeClosingParenthesis() {
+			return out, "", errExpectedClosingParenthesis
+		}
+
+		out = relativePseudoClassSelector{name: name, rels: rels}
 
 	case "contains", "containsown":
 		if !p.consumeParenthesis() {
@@ -889,6 +903,54 @@ func (p *parser) parseSelectorGroup() (SelectorGroup, error) {
 		}
 		p.i++
 		c, err := p.parseSelector()
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, c)
+	}
+	return result, nil
+}
+
+// parseRelativeSelector parses a selector that may start with a combinator
+// (a relative selector, as used inside :has()).
+func (p *parser) parseRelativeSelector() (relativeSelector, error) {
+	p.skipWhitespace()
+	var combinator byte
+	if p.i < len(p.s) {
+		switch p.s[p.i] {
+		case '+', '>', '~':
+			combinator = p.s[p.i]
+			p.i++
+			p.skipWhitespace()
+		}
+	}
+	sel, err := p.parseSelector()
+	if err != nil {
+		return relativeSelector{}, err
+	}
+	return relativeSelector{combinator: combinator, sel: sel}, nil
+}
+
+// parseRelativeSelectorGroup parses a comma-separated list of relative selectors.
+func (p *parser) parseRelativeSelectorGroup() ([]relativeSelector, error) {
+	if p.depth > maxParseDepth {
+		return nil, fmt.Errorf("selector nesting too deep (max %d)", maxParseDepth)
+	}
+	p.depth++
+	defer func() { p.depth-- }()
+
+	current, err := p.parseRelativeSelector()
+	if err != nil {
+		return nil, err
+	}
+	result := []relativeSelector{current}
+
+	for p.i < len(p.s) {
+		if p.s[p.i] != ',' {
+			break
+		}
+		p.i++
+		c, err := p.parseRelativeSelector()
 		if err != nil {
 			return nil, err
 		}

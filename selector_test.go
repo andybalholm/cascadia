@@ -598,6 +598,30 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<html><a><img></img></a></html>`,
+		"a:has(> img)",
+		[]string{
+			"<a><img/></a>",
+		},
+	},
+	{
+		`<html><a>no image</a><p><img></img></p></html>`,
+		"a:has(> img)",
+		[]string{},
+	},
+	{
+		`<html><div><a><img></img></a></div></html>`,
+		"div:has(> img)",
+		[]string{},
+	},
+	{
+		`<html><p><img></img></p><p>x</p></html>`,
+		`p:has(+ p)`,
+		[]string{
+			"<p><img/></p>",
+		},
+	},
+	{
 		`<p id="p1">0123456789</p><p id="p2">abcdef</p><p id="p3">0123ABCD</p>`,
 		`p:matches([\d])`,
 		[]string{
