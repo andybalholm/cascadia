@@ -50,6 +50,10 @@ func (p *parser) parseEscape() (result string, err error) {
 			}
 		}
 		p.i = i
+		// CSS escapes for U+0000 denote the replacement character, not a NUL.
+		if v == 0 {
+			return "\ufffd", nil
+		}
 		return string(rune(v)), nil
 	}
 
