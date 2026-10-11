@@ -295,7 +295,7 @@ var selectorTests = []selectorTest{
 	{
 		`<p class=" ">This text should be green.</p><p>This text should be green.</p>`,
 		`p[class$=" "]`,
-		[]string{},
+		[]string{`<p class=" ">This text should be green.</p>`},
 	},
 	{
 		`<p class="">This text should be green.</p><p>This text should be green.</p>`,
@@ -305,7 +305,7 @@ var selectorTests = []selectorTest{
 	{
 		`<p class=" ">This text should be green.</p><p>This text should be green.</p>`,
 		`p[class^=" "]`,
-		[]string{},
+		[]string{`<p class=" ">This text should be green.</p>`},
 	},
 	{
 		`<p class="">This text should be green.</p><p>This text should be green.</p>`,
@@ -315,7 +315,7 @@ var selectorTests = []selectorTest{
 	{
 		`<p class=" ">This text should be green.</p><p>This text should be green.</p>`,
 		`p[class*=" "]`,
-		[]string{},
+		[]string{`<p class=" ">This text should be green.</p>`},
 	},
 	{
 		`<p class="">This text should be green.</p><p>This text should be green.</p>`,
@@ -1073,6 +1073,28 @@ func TestEmptyAttributeSelectorValues(t *testing.T) {
 						t.Errorf("empty selector value matched attribute %q", value)
 					}
 				})
+			}
+		}
+	}
+}
+
+func TestSubstringAttributesMatchWhitespaceValues(t *testing.T) {
+	for _, op := range []string{"^=", "$=", "*="} {
+		for _, flag := range []string{"", " i"} {
+			for _, value := range []string{" ", "\u00a0"} {
+				selector := `[data-value` + op + `"` + value + `"` + flag + `]`
+				matcher, err := Parse(selector)
+				if err != nil {
+					t.Fatal(err)
+				}
+				node := &html.Node{Type: html.ElementNode, Data: "div", Attr: []html.Attribute{{Key: "data-value", Val: value + value}}}
+				if !matcher.Match(node) {
+					t.Errorf("%s should match %q", selector, node.Attr[0].Val)
+				}
+				node.Attr[0].Val = ""
+				if matcher.Match(node) {
+					t.Errorf("%s should not match an empty attribute", selector)
+				}
 			}
 		}
 	}

@@ -376,9 +376,6 @@ func attributePrefixMatch(key, val string, n *html.Node, ignoreCase bool) bool {
 	}
 	return matchAttribute(n, key,
 		func(s string) bool {
-			if strings.TrimSpace(s) == "" {
-				return false
-			}
 			if ignoreCase {
 				return strings.HasPrefix(strings.ToLower(s), strings.ToLower(val))
 			}
@@ -394,9 +391,6 @@ func attributeSuffixMatch(key, val string, n *html.Node, ignoreCase bool) bool {
 	}
 	return matchAttribute(n, key,
 		func(s string) bool {
-			if strings.TrimSpace(s) == "" {
-				return false
-			}
 			if ignoreCase {
 				return strings.HasSuffix(strings.ToLower(s), strings.ToLower(val))
 			}
@@ -412,9 +406,6 @@ func attributeSubstringMatch(key, val string, n *html.Node, ignoreCase bool) boo
 	}
 	return matchAttribute(n, key,
 		func(s string) bool {
-			if strings.TrimSpace(s) == "" {
-				return false
-			}
 			if ignoreCase {
 				return strings.Contains(strings.ToLower(s), strings.ToLower(val))
 			}
