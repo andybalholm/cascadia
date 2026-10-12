@@ -300,7 +300,7 @@ func (t attrSelector) Match(n *html.Node) bool {
 // the real attribute is the attribute value found in the code parsed
 func matchInsensitiveValue(userAttr string, realAttr string, ignoreCase bool) bool {
 	if ignoreCase {
-		return strings.EqualFold(userAttr, realAttr)
+		return toLowerASCII(userAttr) == toLowerASCII(realAttr)
 	}
 	return userAttr == realAttr
 
@@ -377,7 +377,7 @@ func attributePrefixMatch(key, val string, n *html.Node, ignoreCase bool) bool {
 	return matchAttribute(n, key,
 		func(s string) bool {
 			if ignoreCase {
-				return strings.HasPrefix(strings.ToLower(s), strings.ToLower(val))
+				return strings.HasPrefix(toLowerASCII(s), toLowerASCII(val))
 			}
 			return strings.HasPrefix(s, val)
 		})
@@ -392,7 +392,7 @@ func attributeSuffixMatch(key, val string, n *html.Node, ignoreCase bool) bool {
 	return matchAttribute(n, key,
 		func(s string) bool {
 			if ignoreCase {
-				return strings.HasSuffix(strings.ToLower(s), strings.ToLower(val))
+				return strings.HasSuffix(toLowerASCII(s), toLowerASCII(val))
 			}
 			return strings.HasSuffix(s, val)
 		})
@@ -407,7 +407,7 @@ func attributeSubstringMatch(key, val string, n *html.Node, ignoreCase bool) boo
 	return matchAttribute(n, key,
 		func(s string) bool {
 			if ignoreCase {
-				return strings.Contains(strings.ToLower(s), strings.ToLower(val))
+				return strings.Contains(toLowerASCII(s), toLowerASCII(val))
 			}
 			return strings.Contains(s, val)
 		})

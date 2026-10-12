@@ -1099,3 +1099,27 @@ func TestSubstringAttributesMatchWhitespaceValues(t *testing.T) {
 		}
 	}
 }
+
+func TestAttributeCaseFlagIsASCIIOnly(t *testing.T) {
+	for _, op := range []string{"=", "~=", "|=", "^=", "$=", "*="} {
+		for _, tc := range []struct {
+			value, pattern string
+			want           bool
+		}{
+			{"ABC", "abc", true},
+			{"Ä", "ä", false},
+			{"K", "k", false},
+			{"ÄBC", "Äbc", true},
+		} {
+			selector := fmt.Sprintf(`[data-value%s%q i]`, op, tc.pattern)
+			matcher, err := Parse(selector)
+			if err != nil {
+				t.Fatal(err)
+			}
+			node := &html.Node{Type: html.ElementNode, Data: "div", Attr: []html.Attribute{{Key: "data-value", Val: tc.value}}}
+			if got := matcher.Match(node); got != tc.want {
+				t.Errorf("%s against %q: got %v, want %v", selector, tc.value, got, tc.want)
+			}
+		}
+	}
+}
