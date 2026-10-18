@@ -807,6 +807,16 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<select><optgroup disabled><option>A</option></optgroup><option disabled>B</option><option>C</option></select>`,
+		"option:disabled",
+		[]string{`<option>A</option>`, `<option disabled="">B</option>`},
+	},
+	{
+		`<select><optgroup disabled><option>A</option></optgroup><option disabled>B</option><option>C</option></select>`,
+		"option:enabled",
+		[]string{`<option>C</option>`},
+	},
+	{
 		`<div class=class1></div><div class=class2></div><div class=class3></div>`,
 		"div.class1, div.class2",
 		[]string{

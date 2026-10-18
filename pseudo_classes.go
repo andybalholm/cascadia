@@ -470,7 +470,10 @@ func (s enabledPseudoClassSelector) Match(n *html.Node) bool {
 		return hasAttr(n, "href")
 	case atom.Optgroup, atom.Menuitem, atom.Fieldset:
 		return !hasAttr(n, "disabled")
-	case atom.Button, atom.Input, atom.Select, atom.Textarea, atom.Option:
+	case atom.Option:
+		return !hasAttr(n, "disabled") && !inDisabledFieldset(n) &&
+			!(n.Parent != nil && n.Parent.DataAtom == atom.Optgroup && hasAttr(n.Parent, "disabled"))
+	case atom.Button, atom.Input, atom.Select, atom.Textarea:
 		return !hasAttr(n, "disabled") && !inDisabledFieldset(n)
 	}
 	return false
@@ -487,7 +490,10 @@ func (s disabledPseudoClassSelector) Match(n *html.Node) bool {
 	switch n.DataAtom {
 	case atom.Optgroup, atom.Menuitem, atom.Fieldset:
 		return hasAttr(n, "disabled")
-	case atom.Button, atom.Input, atom.Select, atom.Textarea, atom.Option:
+	case atom.Option:
+		return hasAttr(n, "disabled") || inDisabledFieldset(n) ||
+			(n.Parent != nil && n.Parent.DataAtom == atom.Optgroup && hasAttr(n.Parent, "disabled"))
+	case atom.Button, atom.Input, atom.Select, atom.Textarea:
 		return hasAttr(n, "disabled") || inDisabledFieldset(n)
 	}
 	return false
