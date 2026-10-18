@@ -444,13 +444,16 @@ type langPseudoClassSelector struct {
 }
 
 func (s langPseudoClassSelector) Match(n *html.Node) bool {
+	if n.Type != html.ElementNode {
+		return false
+	}
 	own := matchAttribute(n, "lang", func(val string) bool {
 		return val == s.lang || strings.HasPrefix(val, s.lang+"-")
 	})
-	if n.Parent == nil {
+	if hasAttr(n, "lang") || n.Parent == nil {
 		return own
 	}
-	return own || s.Match(n.Parent)
+	return s.Match(n.Parent)
 }
 
 type enabledPseudoClassSelector struct {
