@@ -448,6 +448,7 @@ func (s langPseudoClassSelector) Match(n *html.Node) bool {
 		return false
 	}
 	own := matchAttribute(n, "lang", func(val string) bool {
+		val = toLowerASCII(val)
 		return val == s.lang || strings.HasPrefix(val, s.lang+"-")
 	})
 	if hasAttr(n, "lang") || n.Parent == nil {

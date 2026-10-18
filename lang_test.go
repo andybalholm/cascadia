@@ -19,6 +19,9 @@ func TestLangInheritance(t *testing.T) {
 		{"empty ancestor", `<div lang="en"><section lang=""><p>text</p></section></div>`, "p:lang(en)", 0},
 		{"nearest match", `<div lang="en"><section lang="fr"><p>text</p></section></div>`, "p:lang(fr)", 1},
 		{"subtag", `<div lang="en-GB"><p>text</p></div>`, "p:lang(en)", 1},
+		{"language case", `<div lang="en"><p lang="EN">text</p></div>`, "p:lang(en)", 1},
+		{"inherited language case", `<div lang="EN-gb"><p>text</p></div>`, "p:lang(en)", 1},
+		{"selector case", `<p lang="fr-CA">text</p>`, "p:lang(FR)", 1},
 		{"no language", `<p>text</p>`, "p:lang(en)", 0},
 		{"elements only", `<p lang="en">text<!--comment--></p>`, ":lang(en)", 1},
 	} {
