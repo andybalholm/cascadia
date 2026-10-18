@@ -399,7 +399,7 @@ func (s emptyElementPseudoClassSelector) Match(n *html.Node) bool {
 		case html.ElementNode:
 			return false
 		case html.TextNode:
-			if strings.TrimSpace(c.Data) == "" {
+			if strings.Trim(c.Data, " \t\r\n\f") == "" {
 				continue
 			} else {
 				return false

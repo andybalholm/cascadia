@@ -960,6 +960,17 @@ func TestOfTypeNamespaces(t *testing.T) {
 	}
 }
 
+func TestEmptyUnicodeSpace(t *testing.T) {
+	s := MustCompile(":empty")
+	for _, text := range []string{"\u00a0", "\u2003", "\u202f"} {
+		n := &html.Node{Type: html.ElementNode, Data: "p"}
+		n.AppendChild(&html.Node{Type: html.TextNode, Data: text})
+		if s.Match(n) {
+			t.Errorf(":empty matched text %q", text)
+		}
+	}
+}
+
 type testPseudo struct {
 	HTML, selector string
 	spec           Specificity
