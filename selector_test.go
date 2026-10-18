@@ -916,6 +916,40 @@ func TestMatchers(t *testing.T) {
 	}
 }
 
+func TestOfTypeNamespaces(t *testing.T) {
+	parent := &html.Node{Type: html.ElementNode, Data: "div"}
+	nodes := []*html.Node{
+		{Type: html.ElementNode, Data: "a", Namespace: "svg"},
+		{Type: html.ElementNode, Data: "a"},
+		{Type: html.ElementNode, Data: "a", Namespace: "svg"},
+	}
+	for _, n := range nodes {
+		parent.AppendChild(n)
+	}
+	for _, test := range []struct {
+		selector string
+		want     [3]bool
+	}{
+		{":first-of-type", [3]bool{true, true, false}},
+		{":last-of-type", [3]bool{false, true, true}},
+		{":only-of-type", [3]bool{false, true, false}},
+		{":nth-of-type(2)", [3]bool{false, false, true}},
+		{":nth-last-of-type(2)", [3]bool{true, false, false}},
+		{":nth-of-type(2n+1)", [3]bool{true, true, false}},
+		{":nth-last-of-type(2n+1)", [3]bool{false, true, true}},
+	} {
+		s, err := Parse(test.selector)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, n := range nodes {
+			if got := s.Match(n); got != test.want[i] {
+				t.Errorf("%s on node %d: got %v, want %v", test.selector, i, got, test.want[i])
+			}
+		}
+	}
+}
+
 type testPseudo struct {
 	HTML, selector string
 	spec           Specificity
