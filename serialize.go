@@ -33,12 +33,21 @@ func (c classSelector) String() string {
 	return "." + escape(c.class)
 }
 
+// Escape characters that cannot appear literally inside a double-quoted CSS string.
+var quotedStringReplacer = strings.NewReplacer(
+	`\`, `\\`,
+	`"`, `\"`,
+	"\n", `\a `,
+	"\r", `\d `,
+	"\f", `\c `,
+)
+
 func (c attrSelector) String() string {
 	val := c.val
 	if c.operation == "#=" {
 		val = c.regexp.String()
 	} else if c.operation != "" {
-		val = fmt.Sprintf(`"%s"`, val)
+		val = fmt.Sprintf(`"%s"`, quotedStringReplacer.Replace(val))
 	}
 
 	ignoreCase := ""
