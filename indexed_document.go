@@ -152,21 +152,27 @@ func (d *IndexedDocument) Query(m Matcher) *html.Node {
 // returned by Parse or ParseGroup can use the indexes. Other Matcher
 // implementations remain supported and fall back to a tree scan.
 func (d *IndexedDocument) QueryAll(m Matcher) []*html.Node {
+	return d.QueryAllInto(m, nil)
+}
+
+// QueryAllInto appends all descendants matching m to storage in document
+// order and returns the resulting slice. Reusing storage reduces allocations in
+// repeated-query workloads.
+func (d *IndexedDocument) QueryAllInto(m Matcher, storage []*html.Node) []*html.Node {
 	if d == nil || d.root == nil || m == nil {
-		return nil
+		return storage
 	}
 	candidates, ok := d.candidates(m)
 	if !ok {
-		return queryAllWithEvaluator(d.root, m, newQueryEvaluator(d))
+		return queryAllWithEvaluatorInto(d.root, m, newQueryEvaluator(d), storage)
 	}
 	evaluator := newQueryEvaluator(d)
-	var result []*html.Node
 	for _, n := range candidates {
 		if evaluator.match(m, n) {
-			result = append(result, n)
+			storage = append(storage, n)
 		}
 	}
-	return result
+	return storage
 }
 
 type indexAnchor struct {

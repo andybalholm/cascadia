@@ -30,6 +30,16 @@ if err != nil {
 links := indexed.QueryAll(selector)
 ```
 
+For hot loops, reuse result storage with `QueryAllInto`:
+
+```go
+var links []*html.Node
+for _, selector := range selectors {
+	links = indexed.QueryAllInto(selector, links[:0])
+	// Process links before the next iteration.
+}
+```
+
 The tree must not be mutated while the index is in use. Rebuild the index after
 changing nodes or attributes. An `IndexedDocument` supports concurrent queries
 when the underlying tree is immutable. For a single query, the regular

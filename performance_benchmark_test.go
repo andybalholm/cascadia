@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"golang.org/x/net/html"
 )
 
 func benchmarkDocument(sections, links int) string {
@@ -44,6 +46,14 @@ func BenchmarkQueryEngines(b *testing.B) {
 				b.ReportAllocs()
 				for i := 0; i < b.N; i++ {
 					_ = indexed.QueryAll(matcher)
+				}
+			})
+			b.Run("indexed-reuse", func(b *testing.B) {
+				storage := make([]*html.Node, 0, 4096)
+				b.ReportAllocs()
+				b.ResetTimer()
+				for i := 0; i < b.N; i++ {
+					storage = indexed.QueryAllInto(matcher, storage[:0])
 				}
 			})
 		})

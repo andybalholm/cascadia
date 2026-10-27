@@ -16,10 +16,7 @@ type elementName struct {
 }
 
 func newQueryEvaluator(document *IndexedDocument) *queryEvaluator {
-	return &queryEvaluator{
-		document: document,
-		relative: make(map[*relativeSelector]map[*html.Node]struct{}),
-	}
+	return &queryEvaluator{document: document}
 }
 
 func (e *queryEvaluator) match(m Matcher, n *html.Node) bool {
@@ -157,6 +154,9 @@ func (e *queryEvaluator) matchRelativeFromIndex(n *html.Node, combinator byte, r
 				matched[parent] = struct{}{}
 			}
 		}
+		if e.relative == nil {
+			e.relative = make(map[*relativeSelector]map[*html.Node]struct{})
+		}
 		e.relative[relative] = matched
 	}
 	_, ok := matched[n]
@@ -245,18 +245,21 @@ func (e *queryEvaluator) siblingMetadata(n *html.Node) (siblingMetadata, bool) {
 }
 
 func queryAllWithEvaluator(root *html.Node, matcher Matcher, evaluator *queryEvaluator) []*html.Node {
-	var result []*html.Node
+	return queryAllWithEvaluatorInto(root, matcher, evaluator, nil)
+}
+
+func queryAllWithEvaluatorInto(root *html.Node, matcher Matcher, evaluator *queryEvaluator, storage []*html.Node) []*html.Node {
 	var visit func(*html.Node)
 	visit = func(parent *html.Node) {
 		for child := parent.FirstChild; child != nil; child = child.NextSibling {
 			if evaluator.match(matcher, child) {
-				result = append(result, child)
+				storage = append(storage, child)
 			}
 			visit(child)
 		}
 	}
 	visit(root)
-	return result
+	return storage
 }
 
 func queryWithEvaluator(root *html.Node, matcher Matcher, evaluator *queryEvaluator) *html.Node {

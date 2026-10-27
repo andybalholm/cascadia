@@ -49,6 +49,33 @@ func TestIndexedDocumentNilSafety(t *testing.T) {
 	}
 }
 
+func TestQueryAllIntoAppendsAndReusesStorage(t *testing.T) {
+	root := MustParseHTML(`<main><p class="item"></p><p class="item"></p></main>`)
+	matcher := mustParseGroup(".item")
+	sentinel := root
+
+	for name, query := range map[string]func([]*html.Node) []*html.Node{
+		"scan": func(storage []*html.Node) []*html.Node {
+			return QueryAllInto(root, matcher, storage)
+		},
+		"indexed": func(storage []*html.Node) []*html.Node {
+			return NewIndexedDocument(root).QueryAllInto(matcher, storage)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			storage := make([]*html.Node, 1, 4)
+			storage[0] = sentinel
+			got := query(storage)
+			if len(got) != 3 || got[0] != sentinel {
+				t.Fatalf("got %d nodes with prefix %p", len(got), got[0])
+			}
+			if &got[0] != &storage[0] {
+				t.Fatal("query did not reuse available storage capacity")
+			}
+		})
+	}
+}
+
 func TestIndexedDocumentRequiresRebuildAfterMutation(t *testing.T) {
 	root := MustParseHTML(`<main><p class="old"></p></main>`)
 	doc := NewIndexedDocument(root)
