@@ -68,6 +68,20 @@ func TestIndexedDocumentDoesNotDuplicateRepeatedClasses(t *testing.T) {
 	}
 }
 
+func TestIndexedDocumentDoesNotDuplicateRepeatedIDs(t *testing.T) {
+	root := MustParseHTML(`<main><p></p></main>`)
+	p := Query(root, mustParseGroup("p"))
+	p.Attr = []html.Attribute{
+		{Key: "id", Val: "item"},
+		{Key: "id", Val: "item"},
+	}
+
+	got := NewIndexedDocument(root).QueryAll(mustParseGroup("#item"))
+	if len(got) != 1 {
+		t.Fatalf("returned %d matches for one element", len(got))
+	}
+}
+
 func mustParseGroup(query string) SelectorGroup {
 	matcher, err := ParseGroup(query)
 	if err != nil {

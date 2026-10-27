@@ -43,11 +43,15 @@ func NewIndexedDocument(root *html.Node) *IndexedDocument {
 				d.order[n] = position
 				position++
 				d.byTag[n.Data] = append(d.byTag[n.Data], n)
+				var indexedIDs []string
 				var indexedClasses []string
 				for _, attr := range n.Attr {
 					switch attr.Key {
 					case "id":
-						d.byID[attr.Val] = append(d.byID[attr.Val], n)
+						if !slices.Contains(indexedIDs, attr.Val) {
+							indexedIDs = append(indexedIDs, attr.Val)
+							d.byID[attr.Val] = append(d.byID[attr.Val], n)
+						}
 					case "class":
 						indexedClasses = d.indexClasses(n, attr.Val, indexedClasses)
 					}
