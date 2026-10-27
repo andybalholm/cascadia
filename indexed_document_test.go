@@ -140,6 +140,18 @@ func TestIndexedDocumentConcurrentQueries(t *testing.T) {
 	wait.Wait()
 }
 
+func TestIndexedDocumentRelativeSelectorOutsideIndexedSubtree(t *testing.T) {
+	root := MustParseHTML(`<body><header></header><main><p></p></main></body>`)
+	main := Query(root, mustParseGroup("main"))
+	matcher := mustParseGroup("body:has(> header) p")
+
+	got := NewIndexedDocument(main).QueryAll(matcher)
+	want := QueryAll(main, matcher)
+	if !reflect.DeepEqual(got, want) || len(got) != 1 {
+		t.Fatalf("subtree query mismatch: got %d nodes, want %d", len(got), len(want))
+	}
+}
+
 func FuzzIndexedDocumentMatchesQueryAll(f *testing.F) {
 	root := MustParseHTML(benchmarkDocument(8, 6))
 	doc := NewIndexedDocument(root)

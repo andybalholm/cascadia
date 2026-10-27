@@ -133,6 +133,13 @@ func (e *queryEvaluator) matchRelativeFromIndex(n *html.Node, combinator byte, r
 	if e.document == nil || (combinator != ' ' && combinator != '>') {
 		return false, false
 	}
+	if n != e.document.root {
+		if _, indexed := e.document.order[n]; !indexed {
+			// Combined selectors can evaluate ancestors or siblings outside an
+			// indexed subtree. The index is not exhaustive for those nodes.
+			return false, false
+		}
+	}
 	matched, exists := e.relative[relative]
 	if !exists {
 		candidates, ok := e.document.bestCandidates(relative.sel)
@@ -151,6 +158,9 @@ func (e *queryEvaluator) matchRelativeFromIndex(n *html.Node, combinator byte, r
 				continue
 			}
 			for parent := candidate.Parent; parent != nil; parent = parent.Parent {
+				if _, alreadyMatched := matched[parent]; alreadyMatched {
+					break
+				}
 				matched[parent] = struct{}{}
 			}
 		}
