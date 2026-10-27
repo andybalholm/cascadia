@@ -19,6 +19,13 @@ type IndexedDocument struct {
 	byClass map[string][]*html.Node
 	byTag   map[string][]*html.Node
 	order   map[*html.Node]int
+	sibling []siblingMetadata
+}
+
+type siblingMetadata struct {
+	position, reversePosition         uint32
+	typePosition, typeReversePosition uint32
+	count, typeCount                  uint32
 }
 
 // NewIndexedDocument builds indexes for the descendants of root. This matches
@@ -38,10 +45,28 @@ func NewIndexedDocument(root *html.Node) *IndexedDocument {
 	position := 0
 	var visit func(*html.Node)
 	visit = func(parent *html.Node) {
+		count, typeCounts := countElementChildren(parent)
+		var typePositions map[elementName]int
+		if count > 0 {
+			typePositions = make(map[elementName]int, len(typeCounts))
+		}
+		siblingPosition := 0
 		for n := parent.FirstChild; n != nil; n = n.NextSibling {
 			if n.Type == html.ElementNode {
+				siblingPosition++
+				name := elementName{namespace: n.Namespace, data: n.Data}
+				typePositions[name]++
+				typePosition := typePositions[name]
 				d.order[n] = position
 				position++
+				d.sibling = append(d.sibling, siblingMetadata{
+					position:            uint32(siblingPosition),
+					reversePosition:     uint32(count - siblingPosition + 1),
+					typePosition:        uint32(typePosition),
+					typeReversePosition: uint32(typeCounts[name] - typePosition + 1),
+					count:               uint32(count),
+					typeCount:           uint32(typeCounts[name]),
+				})
 				d.byTag[n.Data] = append(d.byTag[n.Data], n)
 				var indexedIDs []string
 				var indexedClasses []string
@@ -62,6 +87,22 @@ func NewIndexedDocument(root *html.Node) *IndexedDocument {
 	}
 	visit(root)
 	return d
+}
+
+func countElementChildren(parent *html.Node) (int, map[elementName]int) {
+	count := 0
+	var typeCounts map[elementName]int
+	for child := parent.FirstChild; child != nil; child = child.NextSibling {
+		if child.Type != html.ElementNode {
+			continue
+		}
+		count++
+		if typeCounts == nil {
+			typeCounts = make(map[elementName]int)
+		}
+		typeCounts[elementName{namespace: child.Namespace, data: child.Data}]++
+	}
+	return count, typeCounts
 }
 
 func (d *IndexedDocument) indexClasses(n *html.Node, value string, indexed []string) []string {
@@ -96,10 +137,11 @@ func (d *IndexedDocument) Query(m Matcher) *html.Node {
 	}
 	candidates, ok := d.candidates(m)
 	if !ok {
-		return Query(d.root, m)
+		return queryWithEvaluator(d.root, m, newQueryEvaluator(d))
 	}
+	evaluator := newQueryEvaluator(d)
 	for _, n := range candidates {
-		if m.Match(n) {
+		if evaluator.match(m, n) {
 			return n
 		}
 	}
@@ -115,11 +157,12 @@ func (d *IndexedDocument) QueryAll(m Matcher) []*html.Node {
 	}
 	candidates, ok := d.candidates(m)
 	if !ok {
-		return QueryAll(d.root, m)
+		return queryAllWithEvaluator(d.root, m, newQueryEvaluator(d))
 	}
-	result := make([]*html.Node, 0, len(candidates))
+	evaluator := newQueryEvaluator(d)
+	var result []*html.Node
 	for _, n := range candidates {
-		if m.Match(n) {
+		if evaluator.match(m, n) {
 			result = append(result, n)
 		}
 	}

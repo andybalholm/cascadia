@@ -28,6 +28,8 @@ func BenchmarkQueryEngines(b *testing.B) {
 		".item-19",
 		"section.group-9 > a.item-19",
 		"main section a[href$=\"/19\"]",
+		"a:nth-child(20)",
+		"a:nth-of-type(2n+1)",
 		"section:has(a.item-19)",
 	} {
 		matcher := mustParseGroup(query)
