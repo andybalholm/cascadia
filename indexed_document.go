@@ -3,7 +3,6 @@ package cascadia
 import (
 	"slices"
 	"sort"
-	"strings"
 
 	"golang.org/x/net/html"
 )
@@ -50,13 +49,7 @@ func NewIndexedDocument(root *html.Node) *IndexedDocument {
 					case "id":
 						d.byID[attr.Val] = append(d.byID[attr.Val], n)
 					case "class":
-						for _, class := range strings.Fields(attr.Val) {
-							if slices.Contains(indexedClasses, class) {
-								continue
-							}
-							indexedClasses = append(indexedClasses, class)
-							d.byClass[class] = append(d.byClass[class], n)
-						}
+						indexedClasses = d.indexClasses(n, attr.Val, indexedClasses)
 					}
 				}
 			}
@@ -65,6 +58,31 @@ func NewIndexedDocument(root *html.Node) *IndexedDocument {
 	}
 	visit(root)
 	return d
+}
+
+func (d *IndexedDocument) indexClasses(n *html.Node, value string, indexed []string) []string {
+	for start := 0; start < len(value); {
+		for start < len(value) && isCSSWhitespace(value[start]) {
+			start++
+		}
+		end := start
+		for end < len(value) && !isCSSWhitespace(value[end]) {
+			end++
+		}
+		if end > start {
+			class := value[start:end]
+			if !slices.Contains(indexed, class) {
+				indexed = append(indexed, class)
+				d.byClass[class] = append(d.byClass[class], n)
+			}
+		}
+		start = end
+	}
+	return indexed
+}
+
+func isCSSWhitespace(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\r' || c == '\n' || c == '\f'
 }
 
 // Query returns the first descendant matching m.
@@ -119,17 +137,7 @@ func (d *IndexedDocument) candidates(m Matcher) ([]*html.Node, bool) {
 		group = SelectorGroup{sel}
 	}
 	if len(group) == 1 {
-		anchors := rightmostAnchors(group[0])
-		if len(anchors) == 0 {
-			return nil, false
-		}
-		best := d.nodesForAnchor(anchors[0])
-		for _, anchor := range anchors[1:] {
-			if nodes := d.nodesForAnchor(anchor); len(nodes) < len(best) {
-				best = nodes
-			}
-		}
-		return best, true
+		return d.bestCandidates(group[0])
 	}
 
 	seen := make(map[*html.Node]struct{})
@@ -157,6 +165,49 @@ func (d *IndexedDocument) candidates(m Matcher) ([]*html.Node, bool) {
 		return d.order[candidates[i]] < d.order[candidates[j]]
 	})
 	return candidates, true
+}
+
+func (d *IndexedDocument) bestCandidates(sel Sel) ([]*html.Node, bool) {
+	switch s := sel.(type) {
+	case combinedSelector:
+		if s.second != nil {
+			return d.bestCandidates(s.second)
+		}
+		return d.bestCandidates(s.first)
+	case compoundSelector:
+		var best []*html.Node
+		found := false
+		for _, part := range s.selectors {
+			var nodes []*html.Node
+			matchedAnchor := true
+			switch p := part.(type) {
+			case idSelector:
+				nodes = d.byID[p.id]
+			case classSelector:
+				nodes = d.byClass[p.class]
+			case tagSelector:
+				nodes = d.byTag[p.tag]
+			default:
+				matchedAnchor = false
+			}
+			if !matchedAnchor {
+				continue
+			}
+			if !found || len(nodes) < len(best) {
+				best = nodes
+			}
+			found = true
+		}
+		return best, found
+	case idSelector:
+		return d.byID[s.id], true
+	case classSelector:
+		return d.byClass[s.class], true
+	case tagSelector:
+		return d.byTag[s.tag], true
+	default:
+		return nil, false
+	}
 }
 
 func (d *IndexedDocument) nodesForAnchor(anchor indexAnchor) []*html.Node {
