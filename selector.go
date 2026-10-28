@@ -152,6 +152,13 @@ func QueryAll(n *html.Node, m Matcher) []*html.Node {
 	return queryInto(n, m, nil)
 }
 
+// QueryAllInto appends all descendants of n that match m to storage and
+// returns the resulting slice. It allows callers that perform repeated queries
+// to reuse result storage.
+func QueryAllInto(n *html.Node, m Matcher, storage []*html.Node) []*html.Node {
+	return queryInto(n, m, storage)
+}
+
 // Match returns true if the node matches the selector.
 func (s Selector) Match(n *html.Node) bool {
 	return s(n)
