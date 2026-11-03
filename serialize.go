@@ -75,6 +75,14 @@ func (c notPseudoClassSelector) String() string {
 	return fmt.Sprintf(":not(%s)", c.match.String())
 }
 
+func (c isPseudoClassSelector) String() string {
+	name := "is"
+	if c.where {
+		name = "where"
+	}
+	return fmt.Sprintf(":%s(%s)", name, c.match.String())
+}
+
 func (c containsPseudoClassSelector) String() string {
 	s := "contains"
 	if c.own {

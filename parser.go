@@ -496,6 +496,20 @@ func (p *parser) parsePseudoclassSelector() (out Sel, pseudoElement string, err 
 
 		out = notPseudoClassSelector{match: sel}
 
+	case "is", "where":
+		if !p.consumeParenthesis() {
+			return out, "", errExpectedParenthesis
+		}
+		sel, parseErr := p.parseForgivingSelectorGroup()
+		if parseErr != nil {
+			return out, "", parseErr
+		}
+		if !p.consumeClosingParenthesis() {
+			return out, "", errExpectedClosingParenthesis
+		}
+
+		out = isPseudoClassSelector{where: name == "where", match: sel}
+
 	case "has", "haschild":
 		if !p.consumeParenthesis() {
 			return out, "", errExpectedParenthesis
@@ -913,6 +927,69 @@ func (p *parser) parseSelectorGroup() (SelectorGroup, error) {
 		result = append(result, c)
 	}
 	return result, nil
+}
+
+// parseForgivingSelectorGroup parses a forgiving selector list, the argument
+// of :is() and :where(). Unlike parseSelectorGroup, a selector that cannot be
+// parsed (or that contains a pseudo-element) is dropped instead of making the
+// whole list invalid. The list may be empty; it then matches nothing.
+// See https://www.w3.org/TR/selectors-4/#forgiving-selector
+func (p *parser) parseForgivingSelectorGroup() (SelectorGroup, error) {
+	if p.depth > maxParseDepth {
+		return nil, fmt.Errorf("selector nesting too deep (max %d)", maxParseDepth)
+	}
+	p.depth++
+	defer func() { p.depth-- }()
+
+	result := SelectorGroup{}
+	for {
+		start := p.i
+		sel, err := p.parseSelector()
+		if err == nil {
+			p.skipWhitespace()
+		}
+		if err == nil && p.i < len(p.s) && (p.s[p.i] == ',' || p.s[p.i] == ')') && sel.PseudoElement() == "" {
+			result = append(result, sel)
+		} else {
+			p.i = start
+			if !p.skipSelectorArgument() {
+				return nil, errUnmatchedParenthesis
+			}
+		}
+		if p.i < len(p.s) && p.s[p.i] == ',' {
+			p.i++
+			continue
+		}
+		return result, nil
+	}
+}
+
+// skipSelectorArgument advances to the next ',' or ')' that is not nested in
+// parentheses, brackets or a string. It returns false if there is none.
+func (p *parser) skipSelectorArgument() bool {
+	var closers []byte
+	for p.i < len(p.s) {
+		c := p.s[p.i]
+		switch {
+		case c == '\\':
+			p.i++
+		case c == '"' || c == '\'':
+			if _, err := p.parseString(); err != nil {
+				return false
+			}
+			continue
+		case c == '(':
+			closers = append(closers, ')')
+		case c == '[':
+			closers = append(closers, ']')
+		case len(closers) > 0 && c == closers[len(closers)-1]:
+			closers = closers[:len(closers)-1]
+		case len(closers) == 0 && (c == ',' || c == ')'):
+			return true
+		}
+		p.i++
+	}
+	return false
 }
 
 // parseRelativeSelector parses a selector that may start with a combinator

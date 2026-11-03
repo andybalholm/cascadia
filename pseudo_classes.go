@@ -159,6 +159,40 @@ func (c notPseudoClassSelector) PseudoElement() string {
 	return ""
 }
 
+// isPseudoClassSelector implements the :is() and :where() pseudo-classes.
+type isPseudoClassSelector struct {
+	where bool // :where() instead of :is()
+	match SelectorGroup
+}
+
+func (s isPseudoClassSelector) Match(n *html.Node) bool {
+	if n.Type != html.ElementNode {
+		return false
+	}
+	return s.match.Match(n)
+}
+
+// Specificity returns zero for :where() and the specificity of the most
+// specific argument for :is().
+// See https://www.w3.org/TR/selectors-4/#specificity-rules
+func (s isPseudoClassSelector) Specificity() Specificity {
+	var max Specificity
+	if s.where {
+		return max
+	}
+	for _, sel := range s.match {
+		newSpe := sel.Specificity()
+		if max.Less(newSpe) {
+			max = newSpe
+		}
+	}
+	return max
+}
+
+func (c isPseudoClassSelector) PseudoElement() string {
+	return ""
+}
+
 type containsPseudoClassSelector struct {
 	abstractPseudoClass
 	value string
