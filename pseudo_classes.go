@@ -466,8 +466,6 @@ func (s enabledPseudoClassSelector) Match(n *html.Node) bool {
 		return false
 	}
 	switch n.DataAtom {
-	case atom.A, atom.Area, atom.Link:
-		return hasAttr(n, "href")
 	case atom.Optgroup, atom.Menuitem, atom.Fieldset:
 		return !hasAttr(n, "disabled")
 	case atom.Option:

@@ -812,6 +812,13 @@ var selectorTests = []selectorTest{
 		[]string{`<option>A</option>`, `<option disabled="">B</option>`},
 	},
 	{
+		`<html><head><link href="x"></head><body><a href="x"></a><area href="x"><input></body></html>`,
+		":enabled",
+		[]string{
+			`<input/>`,
+		},
+	},
+	{
 		`<select><optgroup disabled><option>A</option></optgroup><option disabled>B</option><option>C</option></select>`,
 		"option:enabled",
 		[]string{`<option>C</option>`},
