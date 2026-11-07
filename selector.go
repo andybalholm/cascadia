@@ -338,18 +338,20 @@ func matchInclude(val string, s string, ignoreCase bool) bool {
 	if val == "" {
 		return false
 	}
-	for s != "" {
-		i := strings.IndexAny(s, " \t\r\n\f")
-		if i == -1 {
-			return matchInsensitiveValue(s, val, ignoreCase)
+	start := 0
+	for i := 0; i < len(s); i++ {
+		if isClassSpace[s[i]] {
+			if matchInsensitiveValue(s[start:i], val, ignoreCase) {
+				return true
+			}
+			start = i + 1
 		}
-		if matchInsensitiveValue(s[:i], val, ignoreCase) {
-			return true
-		}
-		s = s[i+1:]
 	}
-	return false
+	return matchInsensitiveValue(s[start:], val, ignoreCase)
 }
+
+// isClassSpace marks the whitespace that separates the words of a class list.
+var isClassSpace = [256]bool{' ': true, '\t': true, '\r': true, '\n': true, '\f': true}
 
 // matches elements where the attribute named key equals val or starts with val plus a hyphen.
 func attributeDashMatch(key, val string, n *html.Node, ignoreCase bool) bool {
