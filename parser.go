@@ -295,6 +295,42 @@ func (p *parser) consumeParenthesis() bool {
 	return false
 }
 
+// consumeOf consumes the 'of' keyword of :nth-child(An+B of S), with the
+// white space around it. It returns true if the keyword was there.
+func (p *parser) consumeOf() bool {
+	i := p.i
+	p.skipWhitespace()
+	// The keyword needs white space (or a comment) on both sides: '2of' is
+	// a dimension token, not a number followed by 'of'.
+	if p.i > 0 && endsSeparator(p.s[p.i-1]) && p.i+2 < len(p.s) &&
+		toLowerASCII(p.s[p.i:p.i+2]) == "of" && p.skipWhitespaceAt(p.i+2) {
+		p.i += 2
+		p.skipWhitespace()
+		return true
+	}
+	p.i = i
+	return false
+}
+
+// endsSeparator reports whether c can be the last byte of white space or of
+// a comment.
+func endsSeparator(c byte) bool {
+	switch c {
+	case ' ', '\t', '\r', '\n', '\f', '/':
+		return true
+	}
+	return false
+}
+
+// skipWhitespaceAt reports whether p.s[i] starts white space or a comment.
+func (p *parser) skipWhitespaceAt(i int) bool {
+	saved := p.i
+	p.i = i
+	ok := p.skipWhitespace()
+	p.i = saved
+	return ok
+}
+
 // consumeClosingParenthesis consumes a closing parenthesis and any preceding
 // whitespace. It returns true if there was actually a parenthesis to skip.
 func (p *parser) consumeClosingParenthesis() bool {
@@ -577,12 +613,22 @@ func (p *parser) parsePseudoclassSelector() (out Sel, pseudoElement string, err 
 		if err != nil {
 			return out, "", err
 		}
+		last := name == "nth-last-child" || name == "nth-last-of-type"
+		ofType := name == "nth-of-type" || name == "nth-last-of-type"
+		var of SelectorGroup
+		if p.consumeOf() {
+			if ofType {
+				return out, "", fmt.Errorf("the 'of' clause is not allowed in :%s()", name)
+			}
+			of, err = p.parseSelectorGroup()
+			if err != nil {
+				return out, "", err
+			}
+		}
 		if !p.consumeClosingParenthesis() {
 			return out, "", errExpectedClosingParenthesis
 		}
-		last := name == "nth-last-child" || name == "nth-last-of-type"
-		ofType := name == "nth-of-type" || name == "nth-last-of-type"
-		out = nthPseudoClassSelector{a: a, b: b, last: last, ofType: ofType}
+		out = nthPseudoClassSelector{a: a, b: b, last: last, ofType: ofType, of: of}
 
 	case "first-child":
 		out = nthPseudoClassSelector{a: 0, b: 1, ofType: false, last: false}
