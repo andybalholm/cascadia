@@ -417,10 +417,15 @@ func (p *parser) parseAttributeSelector() (attrSelector, error) {
 		return attrSelector{}, errors.New("unexpected EOF in attribute selector")
 	}
 
-	// check if the attribute contains an ignore case flag
+	// check for an attribute case-sensitivity flag: 'i' compares the value
+	// without ASCII case distinctions, 's' asks for the case-sensitive
+	// comparison that is already the default
 	ignoreCase := false
-	if p.s[p.i] == 'i' || p.s[p.i] == 'I' {
+	switch p.s[p.i] {
+	case 'i', 'I':
 		ignoreCase = true
+		p.i++
+	case 's', 'S':
 		p.i++
 	}
 
