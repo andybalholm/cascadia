@@ -145,6 +145,32 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<div><div class="Red"><div class="red">`,
+		`div[class="red" s]`,
+		[]string{
+			`<div class="red"></div>`,
+		},
+	},
+	{
+		`<div><div class="Red">`,
+		`div[class="red" S]`,
+		[]string{},
+	},
+	{
+		`<p title="FooBar"><p title="foobar">`,
+		`p[title^="Foo" s]`,
+		[]string{
+			`<p title="FooBar"></p>`,
+		},
+	},
+	{
+		`<p title="FooBar"><p title="foobar">`,
+		`p[title*="oBa"   s  ]`,
+		[]string{
+			`<p title="FooBar"></p>`,
+		},
+	},
+	{
 		`<address><address title="foo"><address title="bar">`,
 		`address[title="foo"]`,
 		[]string{
