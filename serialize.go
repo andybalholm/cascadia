@@ -150,6 +150,9 @@ func (c rootPseudoClassSelector) String() string {
 }
 
 func (c linkPseudoClassSelector) String() string {
+	if c.anyLink {
+		return ":any-link"
+	}
 	return ":link"
 }
 

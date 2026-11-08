@@ -845,6 +845,22 @@ var selectorTests = []selectorTest{
 		},
 	},
 	{
+		`<html><head><link href="x"></head><body><a href="x"></a><area href="x"><a></a><input></body></html>`,
+		":any-link",
+		[]string{
+			`<link href="x"/>`,
+			`<a href="x"></a>`,
+			`<area href="x"/>`,
+		},
+	},
+	{
+		`<p><a href=""></a><a name="x"></a><span href="x"></span></p>`,
+		"p :any-link",
+		[]string{
+			`<a href=""></a>`,
+		},
+	},
+	{
 		`<select><optgroup disabled><option>A</option></optgroup><option disabled>B</option><option>C</option></select>`,
 		"option:enabled",
 		[]string{`<option>C</option>`},

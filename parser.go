@@ -609,6 +609,8 @@ func (p *parser) parsePseudoclassSelector() (out Sel, pseudoElement string, err 
 		out = rootPseudoClassSelector{}
 	case "link":
 		out = linkPseudoClassSelector{}
+	case "any-link":
+		out = linkPseudoClassSelector{anyLink: true}
 	case "lang":
 		if !p.consumeParenthesis() {
 			return out, "", errExpectedParenthesis
