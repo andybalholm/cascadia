@@ -264,9 +264,13 @@ type nthPseudoClassSelector struct {
 	abstractPseudoClass
 	a, b         int
 	last, ofType bool
+	of           SelectorGroup // the S in :nth-child(An+B of S); nil when absent
 }
 
 func (s nthPseudoClassSelector) Match(n *html.Node) bool {
+	if s.of != nil {
+		return nthOfMatch(s.a, s.b, s.last, s.of, n)
+	}
 	if s.a == 0 {
 		if s.last {
 			return simpleNthLastChildMatch(s.b, s.ofType, n)
@@ -275,6 +279,58 @@ func (s nthPseudoClassSelector) Match(n *html.Node) bool {
 		}
 	}
 	return nthChildMatch(s.a, s.b, s.last, s.ofType, n)
+}
+
+// Specificity returns the specificity of a pseudo-class plus that of the
+// most specific selector in the 'of' clause, if there is one.
+// See https://www.w3.org/TR/selectors-4/#specificity-rules
+func (s nthPseudoClassSelector) Specificity() Specificity {
+	max := Specificity{0, 1, 0}
+	if s.of == nil {
+		return max
+	}
+	for _, sel := range s.of {
+		newSpe := sel.Specificity().Add(Specificity{0, 1, 0})
+		if max.Less(newSpe) {
+			max = newSpe
+		}
+	}
+	return max
+}
+
+// nthOfMatch implements :nth-child(an+b of S) and, if last is true,
+// :nth-last-child(an+b of S): n must match S and be the an+b-th sibling
+// among those that match S.
+func nthOfMatch(a, b int, last bool, of SelectorGroup, n *html.Node) bool {
+	if n.Type != html.ElementNode || !of.Match(n) {
+		return false
+	}
+
+	parent := n.Parent
+	if parent == nil {
+		return false
+	}
+
+	i := 0
+	if last {
+		for c := n; c != nil; c = c.NextSibling {
+			if c.Type == html.ElementNode && of.Match(c) {
+				i++
+			}
+		}
+	} else {
+		for c := n; c != nil; c = c.PrevSibling {
+			if c.Type == html.ElementNode && of.Match(c) {
+				i++
+			}
+		}
+	}
+
+	i -= b
+	if a == 0 {
+		return i == 0
+	}
+	return i%a == 0 && i/a >= 0
 }
 
 // nthChildMatch implements :nth-child(an+b).
