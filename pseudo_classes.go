@@ -465,9 +465,11 @@ func hasAttr(n *html.Node, attr string) bool {
 
 type linkPseudoClassSelector struct {
 	abstractPseudoClass
+	anyLink bool // written as :any-link
 }
 
-// Match implements :link
+// Match implements :link and :any-link. Without visited-link state the
+// two pseudo-classes select the same elements.
 func (s linkPseudoClassSelector) Match(n *html.Node) bool {
 	return (n.DataAtom == atom.A || n.DataAtom == atom.Area || n.DataAtom == atom.Link) && hasAttr(n, "href")
 }
