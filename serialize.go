@@ -88,7 +88,7 @@ func (c containsPseudoClassSelector) String() string {
 	if c.own {
 		s += "Own"
 	}
-	return fmt.Sprintf(`:%s("%s")`, s, c.value)
+	return fmt.Sprintf(`:%s("%s")`, s, quotedStringReplacer.Replace(c.value))
 }
 
 func (c regexpPseudoClassSelector) String() string {
