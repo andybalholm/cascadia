@@ -8,6 +8,43 @@ To test CSS selectors without writing Go code, check out [cascadia](https://gith
 
 [Refer to godoc here](https://godoc.org/github.com/andybalholm/cascadia).
 
+## Repeated queries over one document
+
+`IndexedDocument` accelerates workloads that run many selectors over the same
+immutable HTML tree. It builds tag, class, ID, and sibling-position indexes
+once, then uses the most selective rightmost selector as the candidate set.
+Selectors that cannot use an index automatically fall back to a tree scan.
+
+```go
+doc, err := html.Parse(reader)
+if err != nil {
+	log.Fatal(err)
+}
+
+indexed := cascadia.NewIndexedDocument(doc)
+selector, err := cascadia.ParseGroup("article.featured > a:has(img)")
+if err != nil {
+	log.Fatal(err)
+}
+
+links := indexed.QueryAll(selector)
+```
+
+For hot loops, reuse result storage with `QueryAllInto`:
+
+```go
+var links []*html.Node
+for _, selector := range selectors {
+	links = indexed.QueryAllInto(selector, links[:0])
+	// Process links before the next iteration.
+}
+```
+
+The tree must not be mutated while the index is in use. Rebuild the index after
+changing nodes or attributes. An `IndexedDocument` supports concurrent queries
+when the underlying tree is immutable. For a single query, the regular
+`Query`/`QueryAll` functions may be faster because they do not build an index.
+
 ## Example
 
 The following is an example of how you can use Cascadia.
