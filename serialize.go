@@ -18,8 +18,13 @@ func init() {
 	specialCharReplacer = strings.NewReplacer(pairs...)
 }
 
-// espace special CSS char
-func escape(s string) string { return specialCharReplacer.Replace(s) }
+// escape escapes special characters in an ID or class name.
+func escape(s string) string {
+	if len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
+		return fmt.Sprintf(`\%x %s`, s[0], specialCharReplacer.Replace(s[1:]))
+	}
+	return specialCharReplacer.Replace(s)
+}
 
 func (c tagSelector) String() string {
 	return c.tag
